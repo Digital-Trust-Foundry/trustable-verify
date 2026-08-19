@@ -15,23 +15,52 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        # The job only reads the repo. Leaving the token in the local git config
+        # would leave it there while third-party package scripts run.
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          registry-url: https://registry.npmjs.org
-      - run: npm ci
-      - name: Tag must match package.json
-        run: |
-          tagged="${GITHUB_REF_NAME#v}"
-          declared="$(node -p "require('./package.json').version")"
-          if [ "$tagged" != "$declared" ]; then
-            echo "tag $tagged does not match package.json $declared" >&2
-            exit 1
-          fi
-      - run: npm run check-types
-      - run: npm test
-      - run: npm run build
-      - run: npm publish --provenance --access public
+
+      # Checked before anything is built. A release that discovers its missing
+      # credential at the publish step has already spent three minutes and
+      # reports it as a failure of the package rather than of its setup.
+      - name: The release token must be present
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "NPM_TOKEN is not set for this repository." >&2
+            echo "It is a repository secret on dtf-platform, not an organisation one, so a new repo does not inherit it." >&2
+            exit 1
+          fi
+
+      - name: Point npm at the public registry with the release token
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          npm config set //registry.npmjs.org/:_authToken '${NODE_AUTH_TOKEN}'
+
+      - name: Tag must match package.json
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package version ${VERSION}" >&2
+            exit 1
+          fi
+
+      - run: npm ci
+      - name: Verify before publishing
+        run: |
+          set -euo pipefail
+          npm run check-types
+          npm test
+          npm run build
+
+      - run: npm publish --provenance --access public
