@@ -76,7 +76,15 @@ jobs:
           set -euo pipefail
           VERSION=$(node -p "require('./package.json').version")
           NAME=$(node -p "require('./package.json').name")
-          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+          # Asked of the version document, not through `npm view`. A freshly
+          # published package answers on its version endpoint immediately while
+          # its full packument stays uncached for some minutes, and `npm view`
+          # reads the packument — so right after a release it reports a version
+          # that plainly exists as missing, and the job publishes into a name
+          # that already has it.
+          ENCODED=$(node -p "encodeURIComponent(process.argv[1])" "$NAME")
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/$ENCODED/$VERSION")
+          if [ "$STATUS" = "200" ]; then
             echo "$NAME@$VERSION is already on the registry; nothing to publish."
             exit 0
           fi
