@@ -21,29 +21,34 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22.14+ and npm 11.5.1+ are what trusted publishing needs. Set here
+          # rather than when we switch to it, so the switch is a change to this
+          # repo's npm settings and nothing else.
+          node-version: 22
           cache: npm
+      - run: npm install -g npm@^11
 
       # Checked before anything is built. A release that discovers its missing
       # credential at the publish step has already spent three minutes and
       # reports it as a failure of the package rather than of its setup.
-      - name: The release token must be present
+      # Two ways to authenticate, and the job takes whichever is configured.
+      # A token is needed for the first publish, because a trusted publisher is
+      # configured in a package's settings and the package has to exist first.
+      # After that, this repo can be added as a trusted publisher on npmjs.com
+      # and the secret deleted — OIDC mints a credential per run that expires in
+      # minutes, which is the only kind that cannot be leaked or go stale.
+      - name: Authenticate to the registry
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${NODE_AUTH_TOKEN}" ]; then
-            echo "NPM_TOKEN is not set for this repository." >&2
-            echo "It is a repository secret on dtf-platform, not an organisation one, so a new repo does not inherit it." >&2
-            exit 1
+          if [ -n "${NODE_AUTH_TOKEN}" ]; then
+            npm config set //registry.npmjs.org/:_authToken '${NODE_AUTH_TOKEN}'
+            echo "Publishing with the release token."
+          else
+            echo "No NPM_TOKEN set — relying on trusted publishing (OIDC)."
+            echo "If this repo is not yet a trusted publisher for the package, the publish below will fail." >&2
           fi
-
-      - name: Point npm at the public registry with the release token
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          set -euo pipefail
-          npm config set //registry.npmjs.org/:_authToken '${NODE_AUTH_TOKEN}'
 
       - name: Tag must match package.json
         run: |
