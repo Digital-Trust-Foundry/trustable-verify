@@ -68,4 +68,25 @@ jobs:
           npm test
           npm run build
 
-      - run: npm publish --provenance --access public
+      # Re-running a tag must not fail on work already done. npm refuses to
+      # replace a published version, which is correct and is not a reason for a
+      # release to go red.
+      - name: Publish if this version is new
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          NAME=$(node -p "require('./package.json').name")
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$NAME@$VERSION is already on the registry; nothing to publish."
+            exit 0
+          fi
+          # Provenance is attempted, not required. It failed on this package's
+          # first-ever publish — npm answers the create with a 404 when the
+          # attestation flow runs against a name the registry has never seen —
+          # so 0.1.0 was published without it. Now that the package exists this
+          # should hold, and a release is not worth blocking on the attestation
+          # if it ever does not.
+          if ! npm publish --provenance --access public; then
+            echo "Provenance publish failed; retrying without it." >&2
+            npm publish --access public
+          fi
