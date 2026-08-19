@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run check-types
+      - run: npm test
+      - run: npm run build
+
+      # The package's whole claim is that it depends on nothing of ours. Inside
+      # a workspace that is easy to believe and impossible to see, so the packed
+      # tarball is installed into an empty project and imported from there —
+      # which is what a consumer actually gets.
+      - name: Verify the published artifact stands alone
+        run: |
+          npm pack --pack-destination /tmp
+          mkdir -p /tmp/consumer && cd /tmp/consumer
+          npm init -y >/dev/null
+          npm install /tmp/dtfoundry-trustable-verify-*.tgz
+          cp "$GITHUB_WORKSPACE/fixtures/issued.json" .
+          cat > check.mjs <<'JS'
+          import { readFileSync } from "node:fs";
+          import { verifyPackage } from "@dtfoundry/trustable-verify";
+          const result = verifyPackage(JSON.parse(readFileSync("issued.json", "utf8")));
+          if (!result.isValid) {
+            console.error(JSON.stringify(result.trustReport.steps, null, 2));
+            throw new Error("the packed artifact could not verify a known-good package");
+          }
+          console.log("packed artifact verifies a known-good package:", result.status);
+          JS
+          node check.mjs
