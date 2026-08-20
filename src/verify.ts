@@ -149,19 +149,44 @@ function checkStructure(
   if (!pkg.acdc_said) missing.push("acdc_said");
   if (!pkg.issuer_aid) missing.push("issuer_aid");
   if (!pkg.cesr && !pkg.acdc) missing.push("cesr or acdc");
-  return missing.length === 0
-    ? step(
-        "passed",
-        "Package structure is complete",
-        "Every field an offline verdict depends on is present",
-        timestamp,
-      )
-    : step(
-        "failed",
-        "Package structure is incomplete",
-        `Missing: ${missing.join(", ")}`,
-        timestamp,
-      );
+  if (missing.length > 0) {
+    return step(
+      "failed",
+      "Package structure is incomplete",
+      `Missing: ${missing.join(", ")}`,
+      timestamp,
+    );
+  }
+
+  // The package's own header has to agree with the credential it carries.
+  // Every step below keys off `acdc_said` and `issuer_aid` — the key log is
+  // walked for that issuer, the anchor is matched for that credential — so a
+  // package free to name a credential or an issuer its ACDC does not would have
+  // those checks vouching for something other than what a reader is looking at.
+  const acdc = pkg.acdc;
+  if (acdc && typeof acdc["d"] === "string" && acdc["d"] !== pkg.acdc_said) {
+    return step(
+      "failed",
+      "Package is internally inconsistent",
+      `The ACDC's own identifier (${String(acdc["d"])}) is not the acdc_said the package declares (${pkg.acdc_said})`,
+      timestamp,
+    );
+  }
+  if (acdc && typeof acdc["i"] === "string" && acdc["i"] !== pkg.issuer_aid) {
+    return step(
+      "failed",
+      "Package is internally inconsistent",
+      `The ACDC's issuer (${String(acdc["i"])}) is not the issuer_aid the package declares (${pkg.issuer_aid})`,
+      timestamp,
+    );
+  }
+
+  return step(
+    "passed",
+    "Package structure is complete",
+    "Every field an offline verdict depends on is present, and the credential agrees with the header that describes it",
+    timestamp,
+  );
 }
 
 function checkSaidIntegrity(

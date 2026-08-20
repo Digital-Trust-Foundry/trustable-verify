@@ -1,6 +1,6 @@
 {
   "name": "@dtfoundry/trustable-verify",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Offline verifier for the Trustable portable verify package. Checks a credential's integrity, its issuer's authorship and its revocation state with no network access.",
   "license": "Apache-2.0",
   "repository": {

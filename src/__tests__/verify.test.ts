@@ -296,3 +296,27 @@ describe("the trust score", () => {
     expect(score.score).toBe(0);
   });
 });
+
+describe("the package header must agree with the credential", () => {
+  // Every check below the header keys off these two fields, so a package free
+  // to name a credential or an issuer its ACDC does not would have the key-log
+  // walk and the anchor match vouching for something other than what is being
+  // read.
+  it("rejects a package whose ACDC names a different credential", () => {
+    const pkg = clone(fixture("issued"));
+    (pkg.acdc as Record<string, unknown>)["d"] = "EPklyZbD6rfV2ypJRKiNETOs2aTirVAB5e03dNGWy2aZ";
+
+    const result = verifyPackage(pkg);
+    expect(result.trustReport.steps.structureValidation.status).toBe("failed");
+    expect(result.isValid).toBe(false);
+  });
+
+  it("rejects a package whose ACDC names a different issuer", () => {
+    const pkg = clone(fixture("issued"));
+    (pkg.acdc as Record<string, unknown>)["i"] = "EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEq";
+
+    const result = verifyPackage(pkg);
+    expect(result.trustReport.steps.structureValidation.status).toBe("failed");
+    expect(result.isValid).toBe(false);
+  });
+});
