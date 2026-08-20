@@ -1,6 +1,6 @@
 {
   "name": "@dtfoundry/trustable-verify",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Offline verifier for the Trustable portable verify package. Checks a credential's integrity, its issuer's authorship and its revocation state with no network access.",
   "license": "Apache-2.0",
   "repository": {
@@ -9,7 +9,14 @@
   },
   "homepage": "https://github.com/Digital-Trust-Foundry/trustable-verify#readme",
   "bugs": "https://github.com/Digital-Trust-Foundry/trustable-verify/issues",
-  "keywords": ["keri", "acdc", "cesr", "verifiable-credentials", "offline", "trustable"],
+  "keywords": [
+    "keri",
+    "acdc",
+    "cesr",
+    "verifiable-credentials",
+    "offline",
+    "trustable"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -19,9 +26,15 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "LICENSE", "README.md"],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "sideEffects": false,
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "check-types": "tsc --noEmit",
@@ -38,5 +51,7 @@
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
   },
-  "publishConfig": { "access": "public" }
+  "publishConfig": {
+    "access": "public"
+  }
 }

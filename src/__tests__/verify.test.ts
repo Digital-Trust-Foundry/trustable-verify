@@ -236,3 +236,63 @@ describe("the primitives", () => {
     }
   });
 });
+
+describe("the trust score", () => {
+  // The number is read beside the hosted one in the same UI, so it has to be
+  // the same number for the same evidence — including the parts that look
+  // unflattering.
+  it("bands a fully verified package medium, not high", () => {
+    const score = verifyPackage(fixture("issued")).trustScore;
+
+    // Witness receipts and watcher status are optional checks this path cannot
+    // run. The band only reaches `high` when an optional check passes, so the
+    // honest ceiling offline is medium at the required-only weight total.
+    expect(score.band).toBe("medium");
+    expect(score.score).toBe(70);
+    expect(score.confidence).toBe(1);
+    expect(score.counts).toEqual({
+      passed: 4,
+      skipped: 2,
+      degraded: 0,
+      failed: 0,
+      total: 6,
+      runnable: 4,
+    });
+  });
+
+  it("zeroes the score when a required check fails", () => {
+    const pkg = clone(fixture("issued"));
+    delete pkg.kel;
+
+    const score = verifyPackage(pkg).trustScore;
+    expect(score.band).toBe("failed");
+    expect(score.score).toBe(0);
+  });
+
+  // Worth pinning down, because it looks wrong until you check the hosted
+  // scale: SAID integrity is not one of the weighted checks. A package whose
+  // body was withheld therefore still scores 70 while `isValid` is false — the
+  // score answers "how much of the evidence held up", the verdict answers
+  // "should you rely on this". They are different questions and the number is
+  // reproduced from the hosted scale deliberately, oddity included.
+  it("scores on the weighted checks, which do not include integrity", () => {
+    const pkg = clone(fixture("issued"));
+    delete pkg.cesr;
+
+    const result = verifyPackage(pkg);
+    expect(result.trustReport.steps.saidIntegrity.status).toBe("degraded");
+    expect(result.trustScore.band).toBe("medium");
+    expect(result.trustScore.score).toBe(70);
+    expect(result.isValid).toBe(false);
+  });
+
+  it("caps a degraded required check at the limited band", () => {
+    const pkg = clone(fixture("issued"));
+    // No registry history: telValidation fails and revocation degrades.
+    delete pkg.tel;
+
+    const score = verifyPackage(pkg).trustScore;
+    expect(score.band).toBe("failed");
+    expect(score.score).toBe(0);
+  });
+});

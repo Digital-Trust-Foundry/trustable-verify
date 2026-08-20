@@ -21,7 +21,7 @@ export interface TrustableVerifyPackage {
   [key: string]: unknown;
 }
 
-export type CheckStatus = "passed" | "failed" | "degraded";
+export type CheckStatus = "passed" | "skipped" | "degraded" | "failed";
 
 export interface TrustReportStep {
   status: CheckStatus;
@@ -41,11 +41,37 @@ export interface TrustReportSteps {
   revocationStatus: TrustReportStep;
 }
 
+export type TrustBand = "high" | "medium" | "limited" | "failed";
+
+export interface TrustCheckCounts {
+  passed: number;
+  skipped: number;
+  degraded: number;
+  failed: number;
+  total: number;
+  runnable: number;
+}
+
+export interface TrustScore {
+  /**
+   * 0-100. The sum of weights for `passed` checks, bounded by the band —
+   * `limited` caps at 60, `failed` is always 0.
+   */
+  score: number;
+  /**
+   * Passed checks over checks that actually ran, so a skipped check neither
+   * helps nor hurts. 0-1.
+   */
+  confidence: number;
+  band: TrustBand;
+  counts: TrustCheckCounts;
+}
+
 export interface TrustReport {
   steps: TrustReportSteps;
   status: "verified" | "invalid" | "revoked" | "suspended";
   isValid: boolean;
-  trustScore: "high" | "medium" | "limited" | "failed";
+  trustScore: TrustScore;
   verifiedAt: string;
   credentialSaid: string;
   issuerAid: string;
@@ -57,7 +83,7 @@ export interface OfflineVerificationResult {
   credentialSaid: string;
   issuerAid: string;
   verifiedAt: string;
-  trustScore: TrustReport["trustScore"];
+  trustScore: TrustScore;
   trustReport: TrustReport;
   /**
    * Whether the issuer's authorship was proven, as opposed to merely not

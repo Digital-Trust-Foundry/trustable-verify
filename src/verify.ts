@@ -4,9 +4,12 @@ import { declaredSaid, recomputeSaid } from "./said.js";
 import type {
   CheckStatus,
   OfflineVerificationResult,
+  TrustBand,
+  TrustCheckCounts,
   TrustReport,
   TrustReportStep,
   TrustReportSteps,
+  TrustScore,
   TrustableVerifyPackage,
 } from "./types.js";
 
@@ -32,20 +35,110 @@ function step(
 }
 
 /**
- * The same scoring the hosted path applies, so one report cannot read better
- * than the other for the same evidence.
+ * The Platform's scoring, reproduced exactly — same weights, same banding, same
+ * counts.
+ *
+ * Reproduced rather than simplified because the number is read by app UIs
+ * beside the hosted one, and two scales that disagree about the same evidence
+ * are worse than one scale nobody loves. Note what that means offline: witness
+ * receipts and watcher status are optional checks this path cannot run, and the
+ * band only reaches `high` when an optional check passes — so a package that
+ * verifies completely still bands `medium` at 70. That is the honest reading,
+ * not a penalty.
  */
-function computeTrustScore(steps: TrustReportSteps): TrustReport["trustScore"] {
-  const required = [
-    steps.structureValidation,
-    steps.saidIntegrity,
-    steps.cryptographicVerification,
-    steps.revocationStatus,
-  ];
-  if (required.some((s) => s.status === "failed")) return "failed";
-  if (required.some((s) => s.status === "degraded")) return "limited";
-  const optional = [steps.schemaCompliance, steps.kelDiscovery, steps.telValidation];
-  return optional.some((s) => s.status === "passed") ? "high" : "medium";
+const REQUIRED_WEIGHTS = {
+  kelDiscovery: 15,
+  cryptographicVerification: 20,
+  telValidation: 20,
+  revocationStatus: 15,
+} as const;
+
+const OPTIONAL_WEIGHTS = {
+  witnessReceipts: 15,
+  watcherStatus: 15,
+} as const;
+
+export function computeTrustScore(
+  steps: TrustReportSteps | Partial<Record<string, TrustReportStep>>,
+): TrustScore {
+  const requiredKeys = Object.keys(REQUIRED_WEIGHTS) as (keyof typeof REQUIRED_WEIGHTS)[];
+  const optionalKeys = Object.keys(OPTIONAL_WEIGHTS) as (keyof typeof OPTIONAL_WEIGHTS)[];
+
+  const counts: TrustCheckCounts = {
+    passed: 0,
+    skipped: 0,
+    degraded: 0,
+    failed: 0,
+    total: requiredKeys.length + optionalKeys.length,
+    runnable: 0,
+  };
+
+  let rawScore = 0;
+  let requiredFailed = false;
+  let requiredDegraded = false;
+  let anyOptionalPassed = false;
+
+  const tally = (
+    step: TrustReportStep | undefined,
+    weight: number,
+    isRequired: boolean,
+  ): void => {
+    // A missing step counts as degraded when it was required — evidence was
+    // expected and none arrived — and as skipped when it was optional.
+    const status: CheckStatus = step?.status ?? (isRequired ? "degraded" : "skipped");
+    switch (status) {
+      case "passed":
+        counts.passed += 1;
+        counts.runnable += 1;
+        rawScore += weight;
+        if (!isRequired) anyOptionalPassed = true;
+        break;
+      case "skipped":
+        counts.skipped += 1;
+        break;
+      case "degraded":
+        counts.degraded += 1;
+        counts.runnable += 1;
+        if (isRequired) requiredDegraded = true;
+        break;
+      case "failed":
+        counts.failed += 1;
+        counts.runnable += 1;
+        if (isRequired) requiredFailed = true;
+        break;
+    }
+  };
+
+  const all = steps as Partial<Record<string, TrustReportStep>>;
+  for (const key of requiredKeys) tally(all[key], REQUIRED_WEIGHTS[key], true);
+  // Witness receipts and watcher status are checks the hosted path can run and
+  // this one cannot, so they are never present here. They are still tallied, as
+  // skipped, because that is what decides the band — and dropping them would
+  // quietly promote every offline report a rung.
+  for (const key of optionalKeys) tally(all[key], OPTIONAL_WEIGHTS[key], false);
+
+  let band: TrustBand;
+  let score: number;
+  if (requiredFailed) {
+    band = "failed";
+    score = 0;
+  } else if (requiredDegraded) {
+    band = "limited";
+    score = Math.min(rawScore, 60);
+  } else if (anyOptionalPassed) {
+    band = "high";
+    score = rawScore;
+  } else {
+    band = "medium";
+    score = Math.min(rawScore, 70);
+  }
+
+  const confidence =
+    counts.runnable === 0
+      ? 0
+      : Math.round((counts.passed / counts.runnable) * 100) / 100;
+
+  return { score, confidence, band, counts };
 }
 
 function checkStructure(

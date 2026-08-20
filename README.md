@@ -81,8 +81,16 @@ log is missing or unverifiable comes back `isValid: false` with the reason
 stated, rather than a "verified" that would mean only that the file is
 self-consistent.
 
-The report shares its shape with the Platform's hosted verification, so a
-consumer does not learn a second vocabulary to read an offline answer.
+The report shares its shape with the Platform's hosted verification — the same
+steps, the same statuses, and the same weighted trust score down to the band and
+the counts — so a consumer does not learn a second vocabulary to read an offline
+answer, and two reports on the same evidence do not disagree about the number.
+
+One consequence is worth stating rather than discovering: witness receipts and
+watcher status are optional checks no offline verifier can run, and the band
+only reaches `high` when an optional check passes. A package that verifies
+completely therefore bands `medium` at 70. That is the honest ceiling for an
+offline answer, not a penalty.
 
 ## Fixtures
 
