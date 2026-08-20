@@ -1,3 +1,5 @@
+import type { PackagedApproval } from "./approvals.js";
+
 /** The portable verify package, as the Platform export writes it. */
 export interface TrustableVerifyPackage {
   schema_version: number;
@@ -17,6 +19,16 @@ export interface TrustableVerifyPackage {
   trustable_status?: { current_state?: string };
   signature_policy?: unknown;
   signatures?: unknown;
+  /**
+   * The approval credentials answering the signature policy this credential
+   * names, each with the evidence that proves it: the approving signer's key
+   * event log and the registry history that anchors the approval's issuance.
+   *
+   * Absent from packages written before approvals travelled, which is why a
+   * credential that required a round and carries none of them reports the round
+   * as unproven rather than absent.
+   */
+  approvals?: PackagedApproval[];
   packaged_at?: string;
   [key: string]: unknown;
 }

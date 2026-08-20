@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { verifyPackage, UnsupportedPackageError } from "../verify.js";
 import { recomputeSaid } from "../said.js";
 import { verifyKel } from "../kel.js";
+import { satisfiedRound } from "../approvals.js";
 import type { TrustableVerifyPackage } from "../types.js";
 
 function fixture(name: string): TrustableVerifyPackage {
@@ -376,5 +377,151 @@ describe("the approvals the credential itself required", () => {
       "degraded",
     );
     expect(result.isValid).toBe(false);
+  });
+});
+
+describe("the approvals themselves, proven from their own credentials", () => {
+  // Acceptance 1. The whole point of the change: a Trustable that required a
+  // round of approvals reaches a verified verdict, from the bytes alone.
+  it("verifies an approved multi-signer Trustable offline", () => {
+    const original = globalThis.fetch;
+    globalThis.fetch = (() => {
+      throw new Error("the offline verifier attempted a network call");
+    }) as typeof fetch;
+    try {
+      const result = verifyPackage(fixture("approved"));
+
+      expect(result.trustReport.steps.approvalCompletion?.status).toBe(
+        "passed",
+      );
+      expect(result.isValid).toBe(true);
+      expect(result.status).toBe("verified");
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  // Acceptance 2. A threshold is not a formality: take one approval away and
+  // the package says which requirement went unmet rather than failing vaguely.
+  it("fails, and names the threshold, when an approval is removed", () => {
+    const pkg = clone(fixture("approved"));
+    pkg.approvals = pkg.approvals!.slice(0, 1);
+
+    const result = verifyPackage(pkg);
+    const details = result.trustReport.steps.approvalCompletion?.details ?? "";
+
+    expect(result.trustReport.steps.approvalCompletion?.status).toBe("failed");
+    expect(details).toContain("requires 2 approvals");
+    expect(details).toContain("1 could be proven");
+    expect(result.isValid).toBe(false);
+  });
+
+  // Acceptance 3. An approval is an approval OF something. A genuine credential
+  // that approves a different Trustable is still a genuine credential — it just
+  // has nothing to say about this one.
+  it("does not count an approval that chains to another credential", () => {
+    const pkg = clone(fixture("approvals-rejected"));
+    // Carol's approval is the first of the two, and hers is the one whose edge
+    // points elsewhere.
+    pkg.approvals = pkg.approvals!.slice(0, 1);
+
+    const result = verifyPackage(pkg);
+    const details = result.trustReport.steps.approvalCompletion?.details ?? "";
+
+    expect(result.trustReport.steps.approvalCompletion?.status).toBe("failed");
+    expect(details).toContain("chains to");
+    expect(details).toContain("0 could be proven");
+    expect(result.isValid).toBe(false);
+  });
+
+  // Acceptance 4. Anyone can mint a credential saying they approved something.
+  // What makes it evidence is the signer's own key log sealing its issuance.
+  it("does not count an approval whose issuance is unanchored", () => {
+    const pkg = clone(fixture("approvals-rejected"));
+    pkg.approvals = pkg.approvals!.slice(1);
+
+    const result = verifyPackage(pkg);
+    const details = result.trustReport.steps.approvalCompletion?.details ?? "";
+
+    expect(result.trustReport.steps.approvalCompletion?.status).toBe("failed");
+    expect(details).toContain("No issuance of this approval is sealed");
+    expect(result.isValid).toBe(false);
+  });
+
+  // The bytes decide who signed. A package is free to label an approval however
+  // it likes, and the label is checked against the credential rather than
+  // believed — otherwise a single signer's approval could be presented twice
+  // under two names and satisfy a two-of-two.
+  it("rejects an approval the package attributes to the wrong signer", () => {
+    const pkg = clone(fixture("approved"));
+    pkg.approvals![1] = {
+      ...pkg.approvals![0],
+      issuer_aid: pkg.approvals![1]!.issuer_aid,
+    };
+
+    const result = verifyPackage(pkg);
+    const details = result.trustReport.steps.approvalCompletion?.details ?? "";
+
+    expect(result.trustReport.steps.approvalCompletion?.status).toBe("failed");
+    expect(details).toContain("attributes this approval to");
+    expect(result.isValid).toBe(false);
+  });
+
+  // Duplicating one signer's approval is the cheapest attack on a threshold,
+  // and the answer is that a threshold counts signers, not credentials.
+  it("counts a signer once, however many times their approval appears", () => {
+    const pkg = clone(fixture("approved"));
+    pkg.approvals = [pkg.approvals![0]!, pkg.approvals![0]!];
+
+    const result = verifyPackage(pkg);
+
+    expect(result.trustReport.steps.approvalCompletion?.status).toBe("failed");
+    expect(
+      result.trustReport.steps.approvalCompletion?.details,
+    ).toContain("1 could be proven");
+  });
+
+  // A threshold describes one round. Two separate one-signer rounds are not a
+  // two-signer round, and adding their votes together would say they were.
+  // Checked on the counting directly: rewriting a round id in a package would
+  // break the credential's identifier long before the count was reached.
+  it("does not add up approvals cast in different rounds", () => {
+    const candidates = ["EAlice", "EBob"];
+    const twoRounds = satisfiedRound(
+      [
+        { acdcSaid: "EA1", issuerAid: "EAlice", roundId: "round-one" },
+        { acdcSaid: "EB1", issuerAid: "EBob", roundId: "round-two" },
+      ],
+      2,
+      candidates,
+    );
+    expect(twoRounds.met).toBe(false);
+    expect(twoRounds.best).toBe(1);
+
+    const oneRound = satisfiedRound(
+      [
+        { acdcSaid: "EA1", issuerAid: "EAlice", roundId: "round-one" },
+        { acdcSaid: "EB1", issuerAid: "EBob", roundId: "round-one" },
+      ],
+      2,
+      candidates,
+    );
+    expect(oneRound.met).toBe(true);
+  });
+
+  // Only the signers the credential names. An approval from someone outside the
+  // set is a real credential about this Trustable, and still not a vote the
+  // policy asked for.
+  it("counts only the signers the policy names", () => {
+    const outsider = satisfiedRound(
+      [
+        { acdcSaid: "EA1", issuerAid: "EAlice", roundId: "r" },
+        { acdcSaid: "EX1", issuerAid: "EStranger", roundId: "r" },
+      ],
+      2,
+      ["EAlice", "EBob"],
+    );
+    expect(outsider.met).toBe(false);
+    expect(outsider.best).toBe(1);
   });
 });
