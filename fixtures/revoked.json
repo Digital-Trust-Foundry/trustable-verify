@@ -1,29 +1,33 @@
 {
   "schema_version": 1,
-  "trustable_said": "EPklyZbD6rfV2ypJRKiNETOs2aTirVAB5e03dNGWy2ak",
-  "acdc_said": "EPklyZbD6rfV2ypJRKiNETOs2aTirVAB5e03dNGWy2ak",
-  "issuer_aid": "EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEp",
-  "registry_id": "EMBhMOy8L4w8a3A9puBdMmqUIuEBK58KNR_yWCwhpw98",
+  "trustable_said": "EKkgSDoXKhNkr3wSPQ-dzURPy3QDEzAsIgbDxU1urjOr",
+  "acdc_said": "EKkgSDoXKhNkr3wSPQ-dzURPy3QDEzAsIgbDxU1urjOr",
+  "issuer_aid": "EBXC7hK6Vme7r2PQ3PVvphYC8YmPZtPF0jilB1iBjIM3",
+  "registry_id": "EDhsRBLd4lSHns9w40sRLqqvXOOD5y-QmGoD3X7jqYBM",
   "foundry_base_url": "https://platform.example.invalid",
   "foundry_tenant_id": "00000000-0000-0000-0000-000000000000",
-  "cesr": "{\"v\":\"ACDC10JSON0001a1_\",\"d\":\"EPklyZbD6rfV2ypJRKiNETOs2aTirVAB5e03dNGWy2ak\",\"i\":\"EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEp\",\"ri\":\"EMBhMOy8L4w8a3A9puBdMmqUIuEBK58KNR_yWCwhpw98\",\"s\":\"EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao\",\"a\":{\"d\":\"\",\"i\":\"EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEp\",\"dt\":\"2026-08-19T00:00:00.000000+00:00\",\"document_hash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}}",
+  "cesr": "{\"v\":\"ACDC10JSON0001d8_\",\"d\":\"EKkgSDoXKhNkr3wSPQ-dzURPy3QDEzAsIgbDxU1urjOr\",\"i\":\"EBXC7hK6Vme7r2PQ3PVvphYC8YmPZtPF0jilB1iBjIM3\",\"ri\":\"EDhsRBLd4lSHns9w40sRLqqvXOOD5y-QmGoD3X7jqYBM\",\"s\":\"EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao\",\"a\":{\"d\":\"\",\"i\":\"EBXC7hK6Vme7r2PQ3PVvphYC8YmPZtPF0jilB1iBjIM3\",\"dt\":\"2026-08-19T00:00:00.000000+00:00\",\"document_hash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"signature_policy\":{\"threshold\":1,\"required_roles\":[]}}}",
   "acdc": {
-    "v": "ACDC10JSON0001a1_",
-    "d": "EPklyZbD6rfV2ypJRKiNETOs2aTirVAB5e03dNGWy2ak",
-    "i": "EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEp",
-    "ri": "EMBhMOy8L4w8a3A9puBdMmqUIuEBK58KNR_yWCwhpw98",
+    "v": "ACDC10JSON0001d8_",
+    "d": "EKkgSDoXKhNkr3wSPQ-dzURPy3QDEzAsIgbDxU1urjOr",
+    "i": "EBXC7hK6Vme7r2PQ3PVvphYC8YmPZtPF0jilB1iBjIM3",
+    "ri": "EDhsRBLd4lSHns9w40sRLqqvXOOD5y-QmGoD3X7jqYBM",
     "s": "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao",
     "a": {
       "d": "",
-      "i": "EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEp",
+      "i": "EBXC7hK6Vme7r2PQ3PVvphYC8YmPZtPF0jilB1iBjIM3",
       "dt": "2026-08-19T00:00:00.000000+00:00",
-      "document_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "document_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "signature_policy": {
+        "threshold": 1,
+        "required_roles": []
+      }
     }
   },
   "integrity": {
     "said_checkable": true
   },
-  "kel": "{\"v\":\"KERI10JSON00012b_\",\"t\":\"icp\",\"d\":\"EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEp\",\"i\":\"EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEp\",\"s\":\"0\",\"kt\":\"1\",\"k\":[\"DIUQyGjsLdNL2lanfUR9Nzd500xDaVn2-J9q9LbQq0v3\"],\"nt\":\"1\",\"n\":[\"ED6kWKbvGHSeqx1c_Tk1tPdZKYPQPh6rwMk_naXOFgw3\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"a\":[]}-VAn-AABAADMMgR6id5OIP6SDB0UK1KA63AgMbsjJYbA90pEcqj7TSCyoO1_MyZ5p_FexjTyAEzdg9VGL3E7ZpcQlRE__egA-EAB0AAAAAAAAAAAAAAAAAAAAAAA1AAG2026-08-19T18c50c42d689173p00c00{\"v\":\"KERI10JSON00013a_\",\"t\":\"ixn\",\"d\":\"ELNapTsGx9wgi-8NkPi-OomaqumBfTbkxyhDOBOdCgZ0\",\"i\":\"EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEp\",\"s\":\"1\",\"p\":\"EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEp\",\"a\":[{\"i\":\"EMBhMOy8L4w8a3A9puBdMmqUIuEBK58KNR_yWCwhpw98\",\"s\":\"0\",\"d\":\"EMBhMOy8L4w8a3A9puBdMmqUIuEBK58KNR_yWCwhpw98\"}]}-VAn-AABAABZs60dhWhBfSeDbNOT6N-pLXKq7kjutRQ2vUifjuyjyeDttL1DYLOi7GzrI4PnBinJUHj7eKSJWDO0er-p6QcL-EAB0AAAAAAAAAAAAAAAAAAAAAAB1AAG2026-08-19T18c50c42d691344p00c00{\"v\":\"KERI10JSON00013a_\",\"t\":\"ixn\",\"d\":\"EP5OAPX-76ML-4UZpYglkri0CFsNycngKSgveXPyk_ZM\",\"i\":\"EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEp\",\"s\":\"2\",\"p\":\"ELNapTsGx9wgi-8NkPi-OomaqumBfTbkxyhDOBOdCgZ0\",\"a\":[{\"i\":\"EPklyZbD6rfV2ypJRKiNETOs2aTirVAB5e03dNGWy2ak\",\"s\":\"0\",\"d\":\"EGukJ5PgTz0TQRElA9yp0rlUPgTiJcUvz-EYuRfuC3oZ\"}]}-VAn-AABAABIJsbQgtZg0ERMMm893vpWQ53nm-r-FijOfG0DLt8P7todbEPvfIuOh1KPuujCGyKX4jVYd0wZKYCzDTl5SkEN-EAB0AAAAAAAAAAAAAAAAAAAAAAC1AAG2026-08-19T18c50c42d693461p00c00{\"v\":\"KERI10JSON00013a_\",\"t\":\"ixn\",\"d\":\"EPtPIUWl0CMas0XRqMEIERFa7EBlodOKGzOpjDU2-dH_\",\"i\":\"EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEp\",\"s\":\"3\",\"p\":\"EP5OAPX-76ML-4UZpYglkri0CFsNycngKSgveXPyk_ZM\",\"a\":[{\"i\":\"EPklyZbD6rfV2ypJRKiNETOs2aTirVAB5e03dNGWy2ak\",\"s\":\"1\",\"d\":\"EBIXEg_C4GeXOH4RViFgQ3Xe_GCgEzVX2IsObX6hShvX\"}]}-VAn-AABAAAZRvmSWkkW5S0vA4njeWIuJRYBtSBswf1X1IMdAjX7OYCRKloSSinXghJNtUuky42obbdOdjcYBhIDS3kMQr0B-EAB0AAAAAAAAAAAAAAAAAAAAAAD1AAG2026-08-19T18c50c42d695508p00c00",
+  "kel": "{\"v\":\"KERI10JSON00012b_\",\"t\":\"icp\",\"d\":\"EBXC7hK6Vme7r2PQ3PVvphYC8YmPZtPF0jilB1iBjIM3\",\"i\":\"EBXC7hK6Vme7r2PQ3PVvphYC8YmPZtPF0jilB1iBjIM3\",\"s\":\"0\",\"kt\":\"1\",\"k\":[\"DFM_2MB-s9q_ZvEc6v0j13_AQ0gBCbfLnvxTzNGz9eoa\"],\"nt\":\"1\",\"n\":[\"EHYm9JolNCmhmt-oerL7NYNLHInfTE3whmYs_nQtSctz\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"a\":[]}-VAn-AABAACu6f2bYHet94QdWdOC-kHE0lIevRC7ms5n9lX1NukFrd3y2hAyXaXIFkfeGxTG3IDrc6aQzSZ9qneQTp9elU8H-EAB0AAAAAAAAAAAAAAAAAAAAAAA1AAG2026-08-20T19c31c48d819112p00c00{\"v\":\"KERI10JSON00013a_\",\"t\":\"ixn\",\"d\":\"EMprqLwSf0OljU6brZSEQlGSc5tdUNS6sgQpzyHdihh-\",\"i\":\"EBXC7hK6Vme7r2PQ3PVvphYC8YmPZtPF0jilB1iBjIM3\",\"s\":\"1\",\"p\":\"EBXC7hK6Vme7r2PQ3PVvphYC8YmPZtPF0jilB1iBjIM3\",\"a\":[{\"i\":\"EDhsRBLd4lSHns9w40sRLqqvXOOD5y-QmGoD3X7jqYBM\",\"s\":\"0\",\"d\":\"EDhsRBLd4lSHns9w40sRLqqvXOOD5y-QmGoD3X7jqYBM\"}]}-VAn-AABAABDJPqalsm76E2JDrWz_Qag7hvyGEJieoRpBwfwk5lcBJW7__IwlzSBDabVKoTl7Q6XZnAm3FXQbWs6YWjlZywE-EAB0AAAAAAAAAAAAAAAAAAAAAAB1AAG2026-08-20T19c31c48d821180p00c00{\"v\":\"KERI10JSON00013a_\",\"t\":\"ixn\",\"d\":\"EORPmEDQQNZw55_ffxYX6yIBAfQukHvUiDfKLTj2KjJf\",\"i\":\"EBXC7hK6Vme7r2PQ3PVvphYC8YmPZtPF0jilB1iBjIM3\",\"s\":\"2\",\"p\":\"EMprqLwSf0OljU6brZSEQlGSc5tdUNS6sgQpzyHdihh-\",\"a\":[{\"i\":\"EKkgSDoXKhNkr3wSPQ-dzURPy3QDEzAsIgbDxU1urjOr\",\"s\":\"0\",\"d\":\"EG_GZ2ygAPYhWAbbDrhChOH5Hr6OfkLkjrcj_s0-xn5t\"}]}-VAn-AABAABcbHxULVEqtYaYKZG0iEejPTN5fbo1tcgRfnqxetINczsZqdhr2IKxyWn7mo0DQkCIemLw6L1sEeNkS54glwQI-EAB0AAAAAAAAAAAAAAAAAAAAAAC1AAG2026-08-20T19c31c48d823407p00c00{\"v\":\"KERI10JSON00013a_\",\"t\":\"ixn\",\"d\":\"EN0-y9PGGyIMjhTIVMPju0IzYSLfFd6q46fNXeRP1dyz\",\"i\":\"EBXC7hK6Vme7r2PQ3PVvphYC8YmPZtPF0jilB1iBjIM3\",\"s\":\"3\",\"p\":\"EORPmEDQQNZw55_ffxYX6yIBAfQukHvUiDfKLTj2KjJf\",\"a\":[{\"i\":\"EKkgSDoXKhNkr3wSPQ-dzURPy3QDEzAsIgbDxU1urjOr\",\"s\":\"1\",\"d\":\"EG-WlhUQl3khoTW8bV_BHtEN6nUQ3rnOLWnq-OB9HKSz\"}]}-VAn-AABAAApIm0pnrkAcbwbkGlaefba7ht9ZToEKrn5CxeajFGGByNFdh5VA-h0VRax1H7heldOYqQ1yDhiYzNOe5Ir90AC-EAB0AAAAAAAAAAAAAAAAAAAAAAD1AAG2026-08-20T19c31c48d825562p00c00",
   "packaged_at": "2026-08-19T00:00:00.000Z",
   "discovery": {
     "kel": "https://platform.example.invalid/.well-known/keri/kel/AID/cesr",
@@ -31,22 +35,22 @@
     "status": "https://platform.example.invalid/.well-known/keri/tel/SAID"
   },
   "tel": {
-    "said": "EPklyZbD6rfV2ypJRKiNETOs2aTirVAB5e03dNGWy2ak",
+    "said": "EKkgSDoXKhNkr3wSPQ-dzURPy3QDEzAsIgbDxU1urjOr",
     "status": "revoked",
     "tel_events": [
       {
         "event_type": "iss",
-        "said": "EGukJ5PgTz0TQRElA9yp0rlUPgTiJcUvz-EYuRfuC3oZ",
+        "said": "EG_GZ2ygAPYhWAbbDrhChOH5Hr6OfkLkjrcj_s0-xn5t",
         "sn": "0",
-        "timestamp": "2026-08-19T18:50:42.693106+00:00",
-        "event": "{\"v\":\"KERI10JSON0000ed_\",\"t\":\"iss\",\"d\":\"EGukJ5PgTz0TQRElA9yp0rlUPgTiJcUvz-EYuRfuC3oZ\",\"i\":\"EPklyZbD6rfV2ypJRKiNETOs2aTirVAB5e03dNGWy2ak\",\"s\":\"0\",\"ri\":\"EMBhMOy8L4w8a3A9puBdMmqUIuEBK58KNR_yWCwhpw98\",\"dt\":\"2026-08-19T18:50:42.693106+00:00\"}"
+        "timestamp": "2026-08-20T19:31:48.823053+00:00",
+        "event": "{\"v\":\"KERI10JSON0000ed_\",\"t\":\"iss\",\"d\":\"EG_GZ2ygAPYhWAbbDrhChOH5Hr6OfkLkjrcj_s0-xn5t\",\"i\":\"EKkgSDoXKhNkr3wSPQ-dzURPy3QDEzAsIgbDxU1urjOr\",\"s\":\"0\",\"ri\":\"EDhsRBLd4lSHns9w40sRLqqvXOOD5y-QmGoD3X7jqYBM\",\"dt\":\"2026-08-20T19:31:48.823053+00:00\"}"
       },
       {
         "event_type": "rev",
-        "said": "EBIXEg_C4GeXOH4RViFgQ3Xe_GCgEzVX2IsObX6hShvX",
+        "said": "EG-WlhUQl3khoTW8bV_BHtEN6nUQ3rnOLWnq-OB9HKSz",
         "sn": "1",
-        "timestamp": "2026-08-19T18:50:42.695126+00:00",
-        "event": "{\"v\":\"KERI10JSON000120_\",\"t\":\"rev\",\"d\":\"EBIXEg_C4GeXOH4RViFgQ3Xe_GCgEzVX2IsObX6hShvX\",\"i\":\"EPklyZbD6rfV2ypJRKiNETOs2aTirVAB5e03dNGWy2ak\",\"s\":\"1\",\"ri\":\"EMBhMOy8L4w8a3A9puBdMmqUIuEBK58KNR_yWCwhpw98\",\"p\":\"EGukJ5PgTz0TQRElA9yp0rlUPgTiJcUvz-EYuRfuC3oZ\",\"dt\":\"2026-08-19T18:50:42.695126+00:00\"}"
+        "timestamp": "2026-08-20T19:31:48.825179+00:00",
+        "event": "{\"v\":\"KERI10JSON000120_\",\"t\":\"rev\",\"d\":\"EG-WlhUQl3khoTW8bV_BHtEN6nUQ3rnOLWnq-OB9HKSz\",\"i\":\"EKkgSDoXKhNkr3wSPQ-dzURPy3QDEzAsIgbDxU1urjOr\",\"s\":\"1\",\"ri\":\"EDhsRBLd4lSHns9w40sRLqqvXOOD5y-QmGoD3X7jqYBM\",\"p\":\"EG_GZ2ygAPYhWAbbDrhChOH5Hr6OfkLkjrcj_s0-xn5t\",\"dt\":\"2026-08-20T19:31:48.825179+00:00\"}"
       }
     ],
     "tel_event_count": 2
@@ -55,16 +59,16 @@
     "tel_events": [
       {
         "event_type": "vcp",
-        "said": "EMBhMOy8L4w8a3A9puBdMmqUIuEBK58KNR_yWCwhpw98",
+        "said": "EDhsRBLd4lSHns9w40sRLqqvXOOD5y-QmGoD3X7jqYBM",
         "sn": "0",
         "timestamp": "",
-        "event": "{\"v\":\"KERI10JSON0000ff_\",\"t\":\"vcp\",\"d\":\"EMBhMOy8L4w8a3A9puBdMmqUIuEBK58KNR_yWCwhpw98\",\"i\":\"EMBhMOy8L4w8a3A9puBdMmqUIuEBK58KNR_yWCwhpw98\",\"ii\":\"EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEp\",\"s\":\"0\",\"c\":[\"NB\"],\"bt\":\"0\",\"b\":[],\"n\":\"0AB_Z8JGgqfrbWxVPpOFHm0u\"}"
+        "event": "{\"v\":\"KERI10JSON0000ff_\",\"t\":\"vcp\",\"d\":\"EDhsRBLd4lSHns9w40sRLqqvXOOD5y-QmGoD3X7jqYBM\",\"i\":\"EDhsRBLd4lSHns9w40sRLqqvXOOD5y-QmGoD3X7jqYBM\",\"ii\":\"EBXC7hK6Vme7r2PQ3PVvphYC8YmPZtPF0jilB1iBjIM3\",\"s\":\"0\",\"c\":[\"NB\"],\"bt\":\"0\",\"b\":[],\"n\":\"0AAhPKYHPmkltUHEuWN5WPtD\"}"
       }
     ]
   },
   "credential_status": {
     "status": "revoked",
-    "said": "EPklyZbD6rfV2ypJRKiNETOs2aTirVAB5e03dNGWy2ak",
+    "said": "EKkgSDoXKhNkr3wSPQ-dzURPy3QDEzAsIgbDxU1urjOr",
     "as_of": "2026-08-19T00:00:00.000Z"
   }
 }

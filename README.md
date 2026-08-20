@@ -57,6 +57,13 @@ mint an issuance for a credential they do not control — which is exactly what
 **Revocation.** Read from the last *anchored* registry event. An event the
 issuer never sealed does not get to say whether a credential stands.
 
+**Approval.** A credential names the signature policy it was issued under, and
+that policy is inside the envelope the identifier is computed over — so a
+credential that required three approvals cannot be edited to look like one that
+required none. Where a threshold above one is named, this library reports the
+round as unproven: each approval is issued as its own credential chained to this
+one, and a package does not carry them yet. Unproven is a refusal, not a pass.
+
 ## What it does not check
 
 **Witness receipts.** They travel in the key event log and are parsed past. A
@@ -65,6 +72,11 @@ currently asking it of an archived package.
 
 **Schema compliance.** Reported as `degraded`. Carrying the schema document is
 what makes the check possible later; it is not the check.
+
+**Which approvals actually happened.** The requirement is bound; the approvals
+themselves are not carried in a package yet. A credential minted before the
+policy was bound cannot speak to this at all, and is reported as unstated rather
+than as compliant.
 
 **Whether the credential is valid *now*.** It cannot be, and that is the whole
 point of `as_of`. An offline answer describes the moment the package was made.

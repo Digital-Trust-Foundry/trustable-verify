@@ -141,6 +141,50 @@ export function computeTrustScore(
   return { score, confidence, band, counts };
 }
 
+/**
+ * What the credential itself says about the approvals it required.
+ *
+ * Read out of the packaged CESR, never out of `pkg.acdc` or `pkg.signature_policy`
+ * — those are projections a holder can edit. The policy is inside the envelope
+ * the SAID is computed over, so a credential that names a threshold cannot be
+ * made to stop naming it.
+ */
+function boundThreshold(cesr: string | undefined): number | null {
+  if (!cesr) return null;
+  const sad = sadFromCesr(cesr);
+  const attributes = sad?.["a"];
+  if (!attributes || typeof attributes !== "object") return null;
+  const policy = (attributes as Record<string, unknown>)["signature_policy"];
+  if (!policy || typeof policy !== "object") return null;
+  const threshold = (policy as Record<string, unknown>)["threshold"];
+  return typeof threshold === "number" && Number.isFinite(threshold)
+    ? threshold
+    : null;
+}
+
+/**
+ * The credential's own serialisation, parsed. JSON framing only — Platform
+ * issues ACDC10JSON, and matching the CBOR or MGPK variants would slice bytes
+ * `JSON.parse` always rejects and dress the failure up as a successful read.
+ */
+function sadFromCesr(cesr: string): Record<string, unknown> | null {
+  const framing = /ACDC\d{2}JSON([0-9a-f]{6})_/.exec(cesr.slice(0, 64));
+  if (!framing) return null;
+  // The version string states a length in BYTES. Slicing the string would
+  // measure UTF-16 units and cut a credential carrying any non-ASCII attribute
+  // in the wrong place.
+  const bytes = new TextEncoder().encode(cesr);
+  const size = parseInt(framing[1] as string, 16);
+  if (!Number.isFinite(size) || size <= 0 || size > bytes.length) return null;
+  try {
+    return JSON.parse(
+      new TextDecoder().decode(bytes.subarray(0, size)),
+    ) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 function checkStructure(
   pkg: TrustableVerifyPackage,
   timestamp: string,
@@ -343,6 +387,37 @@ export function verifyPackage(
         timestamp,
       );
 
+  // Approval. The credential names the threshold it was issued under, so a
+  // package for a Trustable that required three signatures cannot be made to
+  // look like one that required none.
+  //
+  // Proving the approvals THEMSELVES is a further step: each is issued as its
+  // own credential chained to this one, and a package does not carry them yet.
+  // So a bound threshold above one is reported as unproven rather than
+  // assumed — which is a refusal, not a pass, and is the whole point.
+  const threshold = boundThreshold(pkg.cesr);
+  const approvalCompletion =
+    threshold === null
+      ? step(
+          "degraded",
+          "Approval requirement not stated",
+          "This credential does not carry the signature policy it was issued under, so how many approvals it needed cannot be read from it. Credentials issued before the policy was bound into the envelope are in this case.",
+          timestamp,
+        )
+      : threshold <= 1
+        ? step(
+            "passed",
+            "No multi-party approval was required",
+            "The credential names a threshold of one, met by the issuance itself",
+            timestamp,
+          )
+        : step(
+            "failed",
+            "Approval completion not proven",
+            `The credential names a signature policy requiring ${threshold} approvals. Each approval is issued as its own credential chained to this one, and this package carries none of them, so the round cannot be shown to have completed.`,
+            timestamp,
+          );
+
   const schemaCompliance = step(
     "degraded",
     "Schema not checked",
@@ -380,6 +455,7 @@ export function verifyPackage(
     saidIntegrity,
     schemaCompliance,
     cryptographicVerification,
+    approvalCompletion,
     kelDiscovery,
     telValidation,
     revocationStatus,
@@ -397,7 +473,17 @@ export function verifyPackage(
   // A suspension is not a registry event: the credential still reads as issued,
   // and a package that ignored it would be the way to route around one.
   const suspended = pkg.trustable_status?.current_state === "suspended";
-  const isValid = status === "issued" && !failed && !suspended && authenticity;
+  // An unstated requirement is not a met one, but it is also not a violated
+  // one: a credential minted before the policy was bound simply cannot speak to
+  // this. It degrades the report rather than condemning the credential, which
+  // is the same treatment a withheld body gets.
+  const approvalProven = approvalCompletion.status === "passed";
+  const isValid =
+    status === "issued" &&
+    !failed &&
+    !suspended &&
+    authenticity &&
+    approvalProven;
 
   const trustReport: TrustReport = {
     steps,

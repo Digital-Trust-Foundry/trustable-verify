@@ -320,3 +320,46 @@ describe("the package header must agree with the credential", () => {
     expect(result.isValid).toBe(false);
   });
 });
+
+describe("the approvals the credential itself required", () => {
+  // The requirement lives inside the envelope the SAID is computed over, so a
+  // package for a Trustable that needed three signatures cannot be edited to
+  // look like one that needed none — the edit breaks the credential.
+  it("refuses a credential whose declared approvals cannot be shown", () => {
+    const result = verifyPackage(fixture("multisig"));
+
+    expect(result.trustReport.steps.saidIntegrity.status).toBe("passed");
+    expect(result.authenticity.established).toBe(true);
+    expect(result.trustReport.steps.approvalCompletion?.status).toBe("failed");
+    expect(result.trustReport.steps.approvalCompletion?.details).toContain("3");
+    expect(result.isValid).toBe(false);
+  });
+
+  it("passes when the credential names a threshold of one", () => {
+    const result = verifyPackage(fixture("issued"));
+
+    expect(result.trustReport.steps.approvalCompletion?.status).toBe("passed");
+    expect(result.isValid).toBe(true);
+  });
+
+  // A credential minted before the policy was bound cannot speak to this. It is
+  // not proof of a violation and not proof of compliance, so it degrades rather
+  // than condemns — and does not reach a verified verdict either.
+  // A credential minted before the policy was bound cannot speak to this. It is
+  // not proof of a violation and not proof of compliance, so it degrades rather
+  // than condemns — and does not reach a verified verdict either.
+  //
+  // This is a real credential from before the change, not one edited to look
+  // like it: removing the field from a package would break the SAID, which is
+  // exactly what binding it was for.
+  it("reports a credential from before the change as unstated", () => {
+    const result = verifyPackage(fixture("legacy-no-policy"));
+
+    expect(result.trustReport.steps.saidIntegrity.status).toBe("passed");
+    expect(result.authenticity.established).toBe(true);
+    expect(result.trustReport.steps.approvalCompletion?.status).toBe(
+      "degraded",
+    );
+    expect(result.isValid).toBe(false);
+  });
+});

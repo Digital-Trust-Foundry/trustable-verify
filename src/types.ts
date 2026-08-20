@@ -36,6 +36,12 @@ export interface TrustReportSteps {
   saidIntegrity: TrustReportStep;
   schemaCompliance: TrustReportStep;
   cryptographicVerification: TrustReportStep;
+  /**
+   * Whether the approvals the credential itself required can be shown to have
+   * happened. Absent from the hosted report before the policy was bound into
+   * the credential, so consumers must treat it as optional.
+   */
+  approvalCompletion?: TrustReportStep;
   kelDiscovery: TrustReportStep;
   telValidation: TrustReportStep;
   revocationStatus: TrustReportStep;
