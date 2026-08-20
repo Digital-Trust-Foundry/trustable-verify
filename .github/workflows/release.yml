@@ -13,6 +13,14 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    # Job-wide, and that placement is load-bearing. The token is written into
+    # .npmrc as the literal string `${NODE_AUTH_TOKEN}` — npm expands it from
+    # the environment when it READS the config, which happens in the publish
+    # step, not in the step that wrote it. Scoped to the writing step alone it
+    # expands to empty there, and npm reports the resulting anonymous publish as
+    # a 404 on the PUT rather than as an auth failure.
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         # The job only reads the repo. Leaving the token in the local git config
@@ -39,8 +47,6 @@ jobs:
       # and the secret deleted — OIDC mints a credential per run that expires in
       # minutes, which is the only kind that cannot be leaked or go stale.
       - name: Authenticate to the registry
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           if [ -n "${NODE_AUTH_TOKEN}" ]; then
@@ -89,15 +95,10 @@ jobs:
             echo "$NAME@$VERSION is already on the registry; nothing to publish."
             exit 0
           fi
-          # Published without provenance, and that is a stopgap worth naming.
-          # Provenance requires an attested publish, which npm refuses for a
-          # granular token that bypasses two-factor auth — it answers the PUT
-          # with a bare 404 that reads like a permissions problem. The same
-          # refusal is what npm 11 applies to direct publishing generally.
-          #
-          # The fix is trusted publishing: no token, an OIDC credential minted
-          # per run, and provenance for free. It is configured in the package's
-          # settings on npmjs.com. When that is switched on, delete the
-          # NPM_TOKEN secret, add `npm install -g npm@^11` above, and restore
-          # `--provenance` here.
-          npm publish --access public
+          # Provenance is attempted and not required. It is worth having on a
+          # package whose whole purpose is checkable evidence, and it is not
+          # worth blocking a release on.
+          if ! npm publish --provenance --access public; then
+            echo "Provenance publish failed; retrying without it." >&2
+            npm publish --access public
+          fi
