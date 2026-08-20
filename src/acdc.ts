@@ -78,14 +78,18 @@ export function boundPolicy(cesr: string | undefined): BoundPolicy | null {
       )
     : [];
   const named = candidates.length;
+  // A threshold is a count of signatures, so anything that is not a whole
+  // number of them is not a policy — it is a field somebody filled in wrong, or
+  // filled in deliberately. Zero is the one that matters: with a named set it
+  // would make the round required and satisfied at the same time, passing a
+  // credential nobody approved. One approval is the floor.
+  const counted =
+    typeof declared === "number" && Number.isInteger(declared) && declared > 0
+      ? declared
+      : 1;
   // `kind: "all"` means every named candidate, so the real threshold is the
   // size of the set rather than the number written down.
-  const threshold =
-    fields["kind"] === "all" && named > 0
-      ? named
-      : typeof declared === "number" && Number.isFinite(declared)
-        ? declared
-        : 1;
+  const threshold = fields["kind"] === "all" && named > 0 ? named : counted;
 
   // A named candidate set is the decisive part, not the count. "These signers
   // and no others" with a threshold of one is a 1-of-N approval: a specific

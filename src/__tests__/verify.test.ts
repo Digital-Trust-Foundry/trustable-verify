@@ -5,6 +5,30 @@ import { verifyPackage, UnsupportedPackageError } from "../verify.js";
 import { recomputeSaid } from "../said.js";
 import { verifyKel } from "../kel.js";
 import { satisfiedRound } from "../approvals.js";
+import { boundPolicy } from "../acdc.js";
+
+/** A framed ACDC carrying one signature policy, for reading the policy back. */
+function policyCesr(threshold: number): string {
+  const sad = {
+    v: "",
+    d: "E".padEnd(44, "0"),
+    i: "E".padEnd(44, "1"),
+    a: {
+      signature_policy: {
+        threshold,
+        candidates: [{ actor_aid: "EAlice", role: "officer" }],
+      },
+    },
+  };
+  const framed = (size: number) =>
+    JSON.stringify({
+      ...sad,
+      v: `ACDC10JSON${size.toString(16).padStart(6, "0")}_`,
+    });
+  let size = Buffer.byteLength(framed(0), "utf8");
+  for (let i = 0; i < 4; i += 1) size = Buffer.byteLength(framed(size), "utf8");
+  return framed(size);
+}
 import type { TrustableVerifyPackage } from "../types.js";
 
 function fixture(name: string): TrustableVerifyPackage {
@@ -523,5 +547,19 @@ describe("the approvals themselves, proven from their own credentials", () => {
     );
     expect(outsider.met).toBe(false);
     expect(outsider.best).toBe(1);
+  });
+});
+
+describe("a threshold that is not a count of signatures", () => {
+  // Zero is the dangerous one: with a named signer set it would make the round
+  // both required and satisfied, passing a credential nobody approved.
+  it("reads a zero threshold as one approval", () => {
+    const zero = satisfiedRound([], 0, ["EAlice"]);
+    expect(zero.met).toBe(true);
+
+    expect(boundPolicy(policyCesr(0))?.threshold).toBe(1);
+    expect(boundPolicy(policyCesr(-2))?.threshold).toBe(1);
+    expect(boundPolicy(policyCesr(2.5))?.threshold).toBe(1);
+    expect(boundPolicy(policyCesr(3))?.threshold).toBe(3);
   });
 });
