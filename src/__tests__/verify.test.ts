@@ -335,6 +335,21 @@ describe("the approvals the credential itself required", () => {
     expect(result.isValid).toBe(false);
   });
 
+  // The decisive part is the named signer set, not the count. "These signers
+  // and no others" with a threshold of one is a 1-of-N approval: a specific
+  // person still has to approve, and the credential is minted before anyone is
+  // asked. Reading only the threshold waves that straight through — which is
+  // the case a product about officer authority cannot afford to get wrong.
+  it("refuses a 1-of-N policy, where the count alone looks satisfied", () => {
+    const result = verifyPackage(fixture("one-of-n"));
+
+    expect(result.trustReport.steps.approvalCompletion?.status).toBe("failed");
+    expect(result.trustReport.steps.approvalCompletion?.details).toContain(
+      "named signer set",
+    );
+    expect(result.isValid).toBe(false);
+  });
+
   it("passes when the credential names a threshold of one", () => {
     const result = verifyPackage(fixture("issued"));
 

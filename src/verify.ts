@@ -149,17 +149,34 @@ export function computeTrustScore(
  * the SAID is computed over, so a credential that names a threshold cannot be
  * made to stop naming it.
  */
-function boundThreshold(cesr: string | undefined): number | null {
+function boundPolicy(
+  cesr: string | undefined,
+): { threshold: number; requiresRound: boolean } | null {
   if (!cesr) return null;
   const sad = sadFromCesr(cesr);
   const attributes = sad?.["a"];
   if (!attributes || typeof attributes !== "object") return null;
   const policy = (attributes as Record<string, unknown>)["signature_policy"];
   if (!policy || typeof policy !== "object") return null;
-  const threshold = (policy as Record<string, unknown>)["threshold"];
-  return typeof threshold === "number" && Number.isFinite(threshold)
-    ? threshold
-    : null;
+  const fields = policy as Record<string, unknown>;
+  const declared = fields["threshold"];
+  const candidates = fields["candidates"];
+  const named = Array.isArray(candidates) ? candidates.length : 0;
+  // `kind: "all"` means every named candidate, so the real threshold is the
+  // size of the set rather than the number written down.
+  const threshold =
+    fields["kind"] === "all" && named > 0
+      ? named
+      : typeof declared === "number" && Number.isFinite(declared)
+        ? declared
+        : 1;
+
+  // A named candidate set is the decisive part, not the count. "These signers
+  // and no others" with a threshold of one is a 1-of-N approval: a specific
+  // person still has to approve, and the credential is minted before anyone is
+  // asked. Reading only the threshold would wave that through — which is
+  // exactly the case a product about officer authority cannot get wrong.
+  return { threshold, requiresRound: named > 0 || threshold > 1 };
 }
 
 /**
@@ -395,26 +412,26 @@ export function verifyPackage(
   // own credential chained to this one, and a package does not carry them yet.
   // So a bound threshold above one is reported as unproven rather than
   // assumed — which is a refusal, not a pass, and is the whole point.
-  const threshold = boundThreshold(pkg.cesr);
+  const policy = boundPolicy(pkg.cesr);
   const approvalCompletion =
-    threshold === null
+    policy === null
       ? step(
           "degraded",
           "Approval requirement not stated",
-          "This credential does not carry the signature policy it was issued under, so how many approvals it needed cannot be read from it. Credentials issued before the policy was bound into the envelope are in this case.",
+          "This credential does not carry the signature policy it was issued under, so what it needed cannot be read from it. Credentials issued before the policy was bound into the envelope are in this case.",
           timestamp,
         )
-      : threshold <= 1
+      : !policy.requiresRound
         ? step(
             "passed",
-            "No multi-party approval was required",
-            "The credential names a threshold of one, met by the issuance itself",
+            "No approval round was required",
+            "The credential names a threshold of one and no signer set, so the issuance itself is the approval",
             timestamp,
           )
         : step(
             "failed",
             "Approval completion not proven",
-            `The credential names a signature policy requiring ${threshold} approvals. Each approval is issued as its own credential chained to this one, and this package carries none of them, so the round cannot be shown to have completed.`,
+            `The credential names a signature policy requiring ${policy.threshold} approval${policy.threshold === 1 ? "" : "s"} from a named signer set. Each approval is issued as its own credential chained to this one, and this package carries none of them, so the round cannot be shown to have completed.`,
             timestamp,
           );
 
