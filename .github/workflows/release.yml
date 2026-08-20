@@ -21,12 +21,13 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          # 22.14+ and npm 11.5.1+ are what trusted publishing needs. Set here
-          # rather than when we switch to it, so the switch is a change to this
-          # repo's npm settings and nothing else.
+          # Node 22 is what trusted publishing will need. npm is deliberately
+          # NOT upgraded past what Node ships: npm 11 refuses a granular token
+          # that bypasses two-factor auth for direct publishing, and reports the
+          # refusal as a bare 404 on the PUT. Upgrading to npm 11 ahead of the
+          # switch is what broke this job's first two attempts.
           node-version: 22
           cache: npm
-      - run: npm install -g npm@^11
 
       # Checked before anything is built. A release that discovers its missing
       # credential at the publish step has already spent three minutes and
@@ -88,13 +89,15 @@ jobs:
             echo "$NAME@$VERSION is already on the registry; nothing to publish."
             exit 0
           fi
-          # Provenance is attempted, not required. It failed on this package's
-          # first-ever publish — npm answers the create with a 404 when the
-          # attestation flow runs against a name the registry has never seen —
-          # so 0.1.0 was published without it. Now that the package exists this
-          # should hold, and a release is not worth blocking on the attestation
-          # if it ever does not.
-          if ! npm publish --provenance --access public; then
-            echo "Provenance publish failed; retrying without it." >&2
-            npm publish --access public
-          fi
+          # Published without provenance, and that is a stopgap worth naming.
+          # Provenance requires an attested publish, which npm refuses for a
+          # granular token that bypasses two-factor auth — it answers the PUT
+          # with a bare 404 that reads like a permissions problem. The same
+          # refusal is what npm 11 applies to direct publishing generally.
+          #
+          # The fix is trusted publishing: no token, an OIDC credential minted
+          # per run, and provenance for free. It is configured in the package's
+          # settings on npmjs.com. When that is switched on, delete the
+          # NPM_TOKEN secret, add `npm install -g npm@^11` above, and restore
+          # `--provenance` here.
+          npm publish --access public
