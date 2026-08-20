@@ -1,3 +1,5 @@
+import { boundPolicy } from "./acdc.js";
+import { readApprovals, satisfiedRound } from "./approvals.js";
 import { verifyKel, type KelSeal } from "./kel.js";
 import { anchoredIssuance, readTel, type TelReading } from "./tel.js";
 import { declaredSaid, recomputeSaid } from "./said.js";
@@ -139,67 +141,6 @@ export function computeTrustScore(
       : Math.round((counts.passed / counts.runnable) * 100) / 100;
 
   return { score, confidence, band, counts };
-}
-
-/**
- * What the credential itself says about the approvals it required.
- *
- * Read out of the packaged CESR, never out of `pkg.acdc` or `pkg.signature_policy`
- * — those are projections a holder can edit. The policy is inside the envelope
- * the SAID is computed over, so a credential that names a threshold cannot be
- * made to stop naming it.
- */
-function boundPolicy(
-  cesr: string | undefined,
-): { threshold: number; requiresRound: boolean } | null {
-  if (!cesr) return null;
-  const sad = sadFromCesr(cesr);
-  const attributes = sad?.["a"];
-  if (!attributes || typeof attributes !== "object") return null;
-  const policy = (attributes as Record<string, unknown>)["signature_policy"];
-  if (!policy || typeof policy !== "object") return null;
-  const fields = policy as Record<string, unknown>;
-  const declared = fields["threshold"];
-  const candidates = fields["candidates"];
-  const named = Array.isArray(candidates) ? candidates.length : 0;
-  // `kind: "all"` means every named candidate, so the real threshold is the
-  // size of the set rather than the number written down.
-  const threshold =
-    fields["kind"] === "all" && named > 0
-      ? named
-      : typeof declared === "number" && Number.isFinite(declared)
-        ? declared
-        : 1;
-
-  // A named candidate set is the decisive part, not the count. "These signers
-  // and no others" with a threshold of one is a 1-of-N approval: a specific
-  // person still has to approve, and the credential is minted before anyone is
-  // asked. Reading only the threshold would wave that through — which is
-  // exactly the case a product about officer authority cannot get wrong.
-  return { threshold, requiresRound: named > 0 || threshold > 1 };
-}
-
-/**
- * The credential's own serialisation, parsed. JSON framing only — Platform
- * issues ACDC10JSON, and matching the CBOR or MGPK variants would slice bytes
- * `JSON.parse` always rejects and dress the failure up as a successful read.
- */
-function sadFromCesr(cesr: string): Record<string, unknown> | null {
-  const framing = /ACDC\d{2}JSON([0-9a-f]{6})_/.exec(cesr.slice(0, 64));
-  if (!framing) return null;
-  // The version string states a length in BYTES. Slicing the string would
-  // measure UTF-16 units and cut a credential carrying any non-ASCII attribute
-  // in the wrong place.
-  const bytes = new TextEncoder().encode(cesr);
-  const size = parseInt(framing[1] as string, 16);
-  if (!Number.isFinite(size) || size <= 0 || size > bytes.length) return null;
-  try {
-    return JSON.parse(
-      new TextDecoder().decode(bytes.subarray(0, size)),
-    ) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
 }
 
 function checkStructure(
@@ -406,13 +347,34 @@ export function verifyPackage(
 
   // Approval. The credential names the threshold it was issued under, so a
   // package for a Trustable that required three signatures cannot be made to
-  // look like one that required none.
-  //
-  // Proving the approvals THEMSELVES is a further step: each is issued as its
-  // own credential chained to this one, and a package does not carry them yet.
-  // So a bound threshold above one is reported as unproven rather than
-  // assumed — which is a refusal, not a pass, and is the whole point.
+  // look like one that required none — and each approval that answers it is a
+  // credential of the signer's own, walked exactly as the genesis credential is.
   const policy = boundPolicy(pkg.cesr);
+  const approvals = readApprovals(
+    pkg.approvals,
+    pkg.acdc_said,
+    pkg.issuer_aid,
+    pkg.kel,
+  );
+  const round =
+    policy === null
+      ? null
+      : satisfiedRound(approvals.proven, policy.threshold, policy.candidates);
+  const rejectedDetail =
+    approvals.rejected.length === 0
+      ? ""
+      : ` Not counted: ${approvals.rejected
+          .map((entry) => `${entry.acdcSaid} — ${entry.reason}`)
+          .join("; ")}.`;
+  const requirement =
+    policy === null
+      ? ""
+      : `${policy.threshold} approval${policy.threshold === 1 ? "" : "s"}${
+          policy.candidates.length > 0
+            ? ` from the named signer set of ${policy.candidates.length}`
+            : ""
+        }`;
+
   const approvalCompletion =
     policy === null
       ? step(
@@ -428,12 +390,31 @@ export function verifyPackage(
             "The credential names a threshold of one and no signer set, so the issuance itself is the approval",
             timestamp,
           )
-        : step(
-            "failed",
-            "Approval completion not proven",
-            `The credential names a signature policy requiring ${policy.threshold} approval${policy.threshold === 1 ? "" : "s"} from a named signer set. Each approval is issued as its own credential chained to this one, and this package carries none of them, so the round cannot be shown to have completed.`,
-            timestamp,
-          );
+        : !round!.met
+          ? step(
+              "failed",
+              "Approval completion not proven",
+              `The credential requires ${requirement}, and ${round!.best} could be proven from this package.${rejectedDetail}`,
+              timestamp,
+            )
+          : // The roles a policy demands are not in the approval's bytes — they
+            // are the minting Platform's record of who a signer is. A threshold
+            // met by identifiers the credential names is as far as the evidence
+            // reaches, so a role requirement is reported unproven rather than
+            // waved through on a count.
+            policy.requiredRoles.length > 0
+            ? step(
+                "degraded",
+                "Approval threshold met, roles unproven",
+                `The credential requires ${requirement}, and ${round!.best} are proven — but it also demands the role${policy.requiredRoles.length === 1 ? "" : "s"} ${policy.requiredRoles.join(", ")}, which an approval credential does not carry and no package can prove.${rejectedDetail}`,
+                timestamp,
+              )
+            : step(
+                "passed",
+                "Approval round completed",
+                `The credential requires ${requirement}, and ${round!.best} are proven: each recomputed from its own bytes, chained to this credential, and its issuance sealed into the approving signer's key event log.${rejectedDetail}`,
+                timestamp,
+              );
 
   const schemaCompliance = step(
     "degraded",

@@ -60,9 +60,20 @@ issuer never sealed does not get to say whether a credential stands.
 **Approval.** A credential names the signature policy it was issued under, and
 that policy is inside the envelope the identifier is computed over — so a
 credential that required three approvals cannot be edited to look like one that
-required none. Where a threshold above one is named, this library reports the
-round as unproven: each approval is issued as its own credential chained to this
-one, and a package does not carry them yet. Unproven is a refusal, not a pass.
+required none.
+
+Each approval is a credential of its own, minted by the signer, and it earns its
+place in the count the same way the genesis credential earns its verdict: its
+identifier recomputed from its own bytes, an `e.genesis.n` edge back to the
+credential being verified, and its issuance sealed into the *approving signer's*
+key event log — their log, not the issuer's, because they are the one whose
+approval it is. An approval the signer later revoked does not count, and neither
+does one from outside the set the policy names.
+
+Thresholds are counted per round and per signer: two one-signer rounds are not a
+two-signer round, and the same approval presented twice is one signer. Where the
+count is not reached, the report says which requirement went unmet and why each
+uncounted approval was not counted. Unproven is a refusal, not a pass.
 
 ## What it does not check
 
@@ -73,10 +84,12 @@ currently asking it of an archived package.
 **Schema compliance.** Reported as `degraded`. Carrying the schema document is
 what makes the check possible later; it is not the check.
 
-**Which approvals actually happened.** The requirement is bound; the approvals
-themselves are not carried in a package yet. A credential minted before the
-policy was bound cannot speak to this at all, and is reported as unstated rather
-than as compliant.
+**The roles a policy demands.** `required_roles` names who a signer has to *be*,
+and an approval credential carries their identifier rather than their office —
+so a threshold met by named identifiers is as far as the bytes reach. A policy
+demanding roles is reported as `degraded`, not waved through on a count. A
+credential minted before the policy was bound cannot speak to any of this, and
+is reported as unstated rather than as compliant.
 
 **Whether the credential is valid *now*.** It cannot be, and that is the whole
 point of `as_of`. An offline answer describes the moment the package was made.
