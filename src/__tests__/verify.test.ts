@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { verifyPackage, UnsupportedPackageError } from "../verify.js";
 import { recomputeSaid } from "../said.js";
 import { verifyKel } from "../kel.js";
+import { parseCesrStream } from "../cesr.js";
 import { satisfiedRound } from "../approvals.js";
 import { boundPolicy } from "../acdc.js";
 
@@ -561,5 +562,57 @@ describe("a threshold that is not a count of signatures", () => {
     expect(boundPolicy(policyCesr(-2))?.threshold).toBe(1);
     expect(boundPolicy(policyCesr(2.5))?.threshold).toBe(1);
     expect(boundPolicy(policyCesr(3))?.threshold).toBe(3);
+  });
+});
+
+describe("a key event log framed the KERI 2.0 way", () => {
+  /**
+   * The framing the platform's KERIA actually emits.
+   *
+   * A version string states one thing framing needs — the event's own byte
+   * count — and 2.0 states it in base64 closed by `.` where 1.0 used six hex
+   * digits closed by `_`. Reading only the second was not a partial answer: a
+   * log of 2.0 events framed as nothing at all, and the report said the issuer
+   * had no key state rather than that its key state could not be read, which
+   * is a well-formed credential shown to a relying party as unverifiable.
+   */
+  const log = JSON.parse(
+    readFileSync(
+      fileURLToPath(new URL("../../fixtures/keri-2.0-kel.json", import.meta.url)),
+      "utf8",
+    ),
+  ) as { issuer_aid: string; kel: string };
+
+  it("frames every event, with the signature attached to each", () => {
+    const events = parseCesrStream(log.kel);
+
+    expect(events).toHaveLength(4);
+    expect(events.map((event) => event.sad["t"])).toEqual([
+      "icp",
+      "ixn",
+      "ixn",
+      "ixn",
+    ]);
+    // One controller signature each. A size read wrongly would still frame
+    // something — it is the attachment boundary that stops making sense.
+    expect(events.map((event) => event.signatures.length)).toEqual([1, 1, 1, 1]);
+  });
+
+  it("verifies the key state and finds every anchored seal", () => {
+    const result = verifyKel(log.kel, log.issuer_aid);
+
+    expect("failure" in result ? result.failure.reason : null).toBeNull();
+    if ("failure" in result) return;
+    expect(result.kel.anchors).toHaveLength(3);
+  });
+
+  it("still reads the 1.0 framing beside it", () => {
+    // The two spellings live in the same stream format and a verifier that
+    // learned the new one at the cost of the old would break every package
+    // already archived.
+    const events = parseCesrStream(fixture("issued").kel as string);
+
+    expect(events.length).toBeGreaterThan(0);
+    expect(events[0]?.sad["t"]).toBe("icp");
   });
 });
