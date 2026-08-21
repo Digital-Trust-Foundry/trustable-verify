@@ -6,7 +6,7 @@ import { recomputeSaid } from "../said.js";
 import { verifyKel } from "../kel.js";
 import { parseCesrStream } from "../cesr.js";
 import { satisfiedRound } from "../approvals.js";
-import { boundPolicy } from "../acdc.js";
+import { boundPolicy, sadFromCesr } from "../acdc.js";
 
 /** A framed ACDC carrying one signature policy, for reading the policy back. */
 function policyCesr(threshold: number): string {
@@ -186,7 +186,10 @@ describe("verifyPackage — tampering", () => {
     const events = (pkg.tel as { tel_events: Record<string, unknown>[] })
       .tel_events;
     const raw = events[0]!["event"] as string;
-    const forged = raw.replace(/"dt":"[^"]*"/, '"dt":"2026-01-01T00:00:00.000000+00:00"');
+    const forged = raw.replace(
+      /"dt":"[^"]*"/,
+      '"dt":"2026-01-01T00:00:00.000000+00:00"',
+    );
     expect(forged).not.toBe(raw);
     // Re-said it so the event is internally consistent — only the anchor fails.
     const sad = JSON.parse(forged) as Record<string, string>;
@@ -330,7 +333,8 @@ describe("the package header must agree with the credential", () => {
   // read.
   it("rejects a package whose ACDC names a different credential", () => {
     const pkg = clone(fixture("issued"));
-    (pkg.acdc as Record<string, unknown>)["d"] = "EPklyZbD6rfV2ypJRKiNETOs2aTirVAB5e03dNGWy2aZ";
+    (pkg.acdc as Record<string, unknown>)["d"] =
+      "EPklyZbD6rfV2ypJRKiNETOs2aTirVAB5e03dNGWy2aZ";
 
     const result = verifyPackage(pkg);
     expect(result.trustReport.steps.structureValidation.status).toBe("failed");
@@ -339,7 +343,8 @@ describe("the package header must agree with the credential", () => {
 
   it("rejects a package whose ACDC names a different issuer", () => {
     const pkg = clone(fixture("issued"));
-    (pkg.acdc as Record<string, unknown>)["i"] = "EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEq";
+    (pkg.acdc as Record<string, unknown>)["i"] =
+      "EM9Kj2oDV0E5wQ1WL4NA1tQKIkRsjUhURT8C43q9XxEq";
 
     const result = verifyPackage(pkg);
     expect(result.trustReport.steps.structureValidation.status).toBe("failed");
@@ -501,9 +506,9 @@ describe("the approvals themselves, proven from their own credentials", () => {
     const result = verifyPackage(pkg);
 
     expect(result.trustReport.steps.approvalCompletion?.status).toBe("failed");
-    expect(
-      result.trustReport.steps.approvalCompletion?.details,
-    ).toContain("1 could be proven");
+    expect(result.trustReport.steps.approvalCompletion?.details).toContain(
+      "1 could be proven",
+    );
   });
 
   // A threshold describes one round. Two separate one-signer rounds are not a
@@ -578,7 +583,9 @@ describe("a key event log framed the KERI 2.0 way", () => {
    */
   const log = JSON.parse(
     readFileSync(
-      fileURLToPath(new URL("../../fixtures/keri-2.0-kel.json", import.meta.url)),
+      fileURLToPath(
+        new URL("../../fixtures/keri-2.0-kel.json", import.meta.url),
+      ),
       "utf8",
     ),
   ) as { issuer_aid: string; kel: string };
@@ -595,7 +602,9 @@ describe("a key event log framed the KERI 2.0 way", () => {
     ]);
     // One controller signature each. A size read wrongly would still frame
     // something — it is the attachment boundary that stops making sense.
-    expect(events.map((event) => event.signatures.length)).toEqual([1, 1, 1, 1]);
+    expect(events.map((event) => event.signatures.length)).toEqual([
+      1, 1, 1, 1,
+    ]);
   });
 
   it("verifies the key state and finds every anchored seal", () => {
@@ -614,5 +623,144 @@ describe("a key event log framed the KERI 2.0 way", () => {
 
     expect(events.length).toBeGreaterThan(0);
     expect(events[0]?.sad["t"]).toBe("icp");
+  });
+});
+
+describe("a credential framed the KERI 2.0 way", () => {
+  /**
+   * The half of the framing fix that was missed the first time.
+   *
+   * `parseCesrStream` learned both spellings; `sadFromCesr` kept a second
+   * regex of its own that read 1.0 only, and every caller of it — the document
+   * hash, the bound policy, the approvals — took its `null` to mean "no
+   * credential" rather than "could not be read". The credential a wallet signs
+   * is 2.0 and the one the server issues is 1.0, so a package carried one of
+   * each: every check that touched the genesis credential passed while the
+   * approvals silently counted zero.
+   *
+   * Both fixtures are the same issuance minted twice, which is what makes this
+   * a test of the reader rather than of whichever version it was written
+   * against.
+   */
+  const minted = JSON.parse(
+    readFileSync(
+      fileURLToPath(
+        new URL("../../fixtures/acdc-2.0-approval.json", import.meta.url),
+      ),
+      "utf8",
+    ),
+  ) as {
+    genesis_said: string;
+    issuer_aid: string;
+    v2: { said: string; cesr: string };
+    v1: { said: string; cesr: string };
+  };
+
+  it("reads a credential in either framing", () => {
+    for (const form of [minted.v2, minted.v1]) {
+      const sad = sadFromCesr(form.cesr);
+
+      expect(sad?.["d"]).toBe(form.said);
+      expect(sad?.["i"]).toBe(minted.issuer_aid);
+    }
+  });
+
+  it("reaches the edge that says what an approval approves", () => {
+    // The field the package builder matches an approval on. Unreadable bytes
+    // and an absent edge are indistinguishable to it, and both mean the
+    // approval is dropped.
+    for (const form of [minted.v2, minted.v1]) {
+      const edges = sadFromCesr(form.cesr)?.["e"] as
+        { genesis?: { n?: string } } | undefined;
+
+      expect(edges?.genesis?.n).toBe(minted.genesis_said);
+    }
+  });
+
+  it("frames each to the byte count its own version string states", () => {
+    // The two spellings state the same thing and the sizes differ, because a
+    // 2.0 envelope is not byte-identical to a 1.0 one. Reading either count
+    // with the other's rule slices in the wrong place.
+    expect(minted.v2.cesr).toMatch(/^\{"v":"ACDCCAACAAJSON[A-Za-z0-9_-]{4}\."/);
+    expect(minted.v1.cesr).toMatch(/^\{"v":"ACDC10JSON[0-9a-f]{6}_"/);
+  });
+
+  /**
+   * Framing a 2.0 credential is not the same as being able to check one, and
+   * this records exactly where the second half stops.
+   *
+   * 1.0 derives its identifier by replacing `d` with a dummy of its own length
+   * and hashing the serialization — which is what `recomputeSaid` does, and
+   * why it agrees. 2.0 derives it by the Most Compact Algorithm: each section
+   * carrying its own `d` is first replaced by that section's SAID, the version
+   * string's byte count is restated for the shorter serialization, and only
+   * then is `d` dummied and the whole hashed. Reproducing it means rebuilding
+   * the compact form, which this does not do.
+   *
+   * The bytes are sufficient for it. keripy computes each section's SAID over
+   * a copy and emits `e.d` as `""`, so a credential does not state its own
+   * section identifier — but the identifier is a digest of the section's
+   * content, which is right there, and deriving it is the same operation
+   * either way. Nothing has to be fetched and nothing is lost; the reader
+   * simply has to know to derive rather than read.
+   *
+   * Deriving it is also what makes the edge binding: the compact form carries
+   * only that digest, so an edge edited while its stated `d` is left alone
+   * would still satisfy the top-level hash if a reader took the stated value
+   * on trust.
+   *
+   * Asserted rather than skipped, because "cannot yet" and "wrong" look the
+   * same from the outside and only one of them is true. When the algorithm
+   * lands, this test fails and says so.
+   */
+  it("recomputes the identifier of either, by the rule that version uses", () => {
+    expect(recomputeSaid(minted.v1.cesr)).toBe(minted.v1.said);
+    expect(recomputeSaid(minted.v2.cesr)).toBe(minted.v2.said);
+  });
+
+  it("derives the edge's identifier rather than believing the one it states", () => {
+    // The attack the compact form invites. `e.d` ships empty, so nothing is
+    // being corrected here — but a reader that took a stated section digest on
+    // trust would accept an edge rewritten to approve something else, still
+    // hashing to the identifier it was issued under. Deriving it is what makes
+    // the edge part of what the signature covers.
+    const lying = minted.v2.cesr.replace(
+      minted.genesis_said,
+      "EAAAnotthecredentialthiswasissuedagainst00",
+    );
+
+    expect(lying).not.toBe(minted.v2.cesr);
+    expect(recomputeSaid(lying)).not.toBe(minted.v2.said);
+  });
+
+  it("leaves a key event log deriving its identifier from its own bytes", () => {
+    // 2.0 as well, and not compactable — the compact route is for credentials.
+    // Sending every 2.0 serialization down it would break the KEL walk, which
+    // is the one part of the report that has been right all along.
+    const log = JSON.parse(
+      readFileSync(
+        fileURLToPath(
+          new URL("../../fixtures/keri-2.0-kel.json", import.meta.url),
+        ),
+        "utf8",
+      ),
+    ) as { kel: string };
+    const icp = parseCesrStream(log.kel)[0];
+
+    expect(icp).toBeDefined();
+    expect(recomputeSaid(icp!.raw, ["d", "i"])).toBe(icp!.sad["d"]);
+  });
+
+  it("refuses a key event log, which is framed the same way and is not one", () => {
+    const log = JSON.parse(
+      readFileSync(
+        fileURLToPath(
+          new URL("../../fixtures/keri-2.0-kel.json", import.meta.url),
+        ),
+        "utf8",
+      ),
+    ) as { kel: string };
+
+    expect(sadFromCesr(log.kel)).toBeNull();
   });
 });

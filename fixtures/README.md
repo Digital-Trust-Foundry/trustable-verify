@@ -36,6 +36,12 @@ compatibility break for anyone who archived a package.
   interactions, each anchoring a seal, which is the shape a registry inception
   and a credential issuance leave behind.
 
+- `acdc-2.0-approval.json` — one approval minted twice, once framed 2.0 the way
+  a wallet-signed credential is and once 1.0 the way a server-issued one is,
+  both carrying the `e.genesis` edge that says what they approve. The pair is
+  the point: a reader that handles only one of them looks correct against
+  whichever it was written for.
+
 `mint.py` produces `approved.json` and `approvals-rejected.json` from a fixed
 salt, so a rerun reproduces the same bytes. `mint-keri-2.0.py` does the same for
 `keri-2.0-kel.json`; it builds its events from `keri.core.eventing` directly
@@ -44,3 +50,12 @@ does underneath in any case. It needs keripy 2.0.0-dev3 — the
 version the platform pins — and is here so the fixtures can be regenerated
 rather than hand-edited, which is the one thing that would quietly turn them
 into the verifier agreeing with itself.
+
+`mint-acdc-2.0.py` produces `acdc-2.0-approval.json`. Run it under Python 3.13
+with keripy on the library path:
+
+    DYLD_LIBRARY_PATH=/opt/homebrew/lib \
+      uv run --python 3.13 --with keri==2.0.0-dev3 mint-acdc-2.0.py
+
+pysodium finds libsodium by name rather than through the wheel, so without that
+path it imports and dies.
