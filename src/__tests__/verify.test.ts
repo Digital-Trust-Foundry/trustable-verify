@@ -687,12 +687,19 @@ describe("a credential framed the KERI 2.0 way", () => {
    * carrying its own `d` is first replaced by that section's SAID, the version
    * string's byte count is restated for the shorter serialization, and only
    * then is `d` dummied and the whole hashed. Reproducing it means rebuilding
-   * the compact form, and the bytes we ship do not contain it.
+   * the compact form, which this does not do.
    *
-   * They do not even contain the part that would make rebuilding mechanical:
-   * keripy computes the edge section's SAID, uses it, and then emits `e.d` as
-   * `""` rather than writing it back — so a verifier has to know to substitute
-   * a 44-character dummy into an empty field and derive the value itself.
+   * The bytes are sufficient for it. keripy computes each section's SAID over
+   * a copy and emits `e.d` as `""`, so a credential does not state its own
+   * section identifier — but the identifier is a digest of the section's
+   * content, which is right there, and deriving it is the same operation
+   * either way. Nothing has to be fetched and nothing is lost; the reader
+   * simply has to know to derive rather than read.
+   *
+   * Deriving it is also what makes the edge binding: the compact form carries
+   * only that digest, so an edge edited while its stated `d` is left alone
+   * would still satisfy the top-level hash if a reader took the stated value
+   * on trust.
    *
    * Asserted rather than skipped, because "cannot yet" and "wrong" look the
    * same from the outside and only one of them is true. When the algorithm
