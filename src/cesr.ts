@@ -25,18 +25,61 @@ export interface ParsedEvent {
   signatures: { index: number; signature: Uint8Array }[];
 }
 
-const VERSION = /\{"v"\s*:\s*"(?:KERI|ACDC)(\d)(\d)(?:JSON)([0-9a-f]{6})_"/;
+/**
+ * The version string that opens every framed event, in both the shapes KERI
+ * writes one.
+ *
+ * 1.0 spells its byte count as six hexadecimal digits and closes with `_`
+ * — `KERI10JSON00012b_`. 2.0 spells the same count as four base64 characters
+ * and closes with `.` — `KERICAACAAJSONAAHo.`, where `AAHo` is 488. Both state
+ * the one thing framing needs, and everything downstream works on the bytes
+ * that count delimits, so this is the only place in the verifier that has to
+ * know there are two spellings at all.
+ *
+ * Matching only the first is not a degraded answer, it is no answer: a stream
+ * whose events are all 2.0 yields zero frames, and the report then says the
+ * issuer has no key state rather than that its key state could not be read —
+ * a well-formed credential presented to a relying party as unverifiable. Our
+ * own KERIA emits 2.0, so that was every real credential.
+ *
+ * The six characters between protocol and `JSON` are not interpreted. Framing
+ * does not depend on them, and a verifier that refused a minor version it had
+ * never heard of would fail closed on exactly the events it is meant to read.
+ */
+const VERSION =
+  /\{"v"\s*:\s*"(?:KERI|ACDC)(?:\d\dJSON(?<hex>[0-9a-f]{6})_|[A-Za-z0-9_-]{6}JSON(?<b64>[A-Za-z0-9_-]{4})\.)"/;
+
+const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+/** A big-endian base64 integer, as CESR writes every count and size. */
+function base64Int(text: string): number {
+  let value = 0;
+  for (const character of text) {
+    const digit = B64.indexOf(character);
+    if (digit < 0) return Number.NaN;
+    value = value * 64 + digit;
+  }
+  return value;
+}
+
+/** The byte count a version string states, whichever way it states it. */
+function declaredSize(match: RegExpExecArray): number {
+  const groups = match.groups ?? {};
+  return groups["hex"] !== undefined
+    ? parseInt(groups["hex"], 16)
+    : base64Int(groups["b64"] as string);
+}
 
 /** Counter codes whose count is a number of 4-character quadlets. */
 const QUADLET_COUNTERS = new Set(["-V", "-0V"]);
 
 function readCount(text: string, at: number): number {
   const count = text.slice(at, at + 2);
-  const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-  const hi = B64.indexOf(count[0] as string);
-  const lo = B64.indexOf(count[1] as string);
-  if (hi < 0 || lo < 0) throw new Error(`unreadable counter count: ${count}`);
-  return hi * 64 + lo;
+  const value = base64Int(count);
+  if (Number.isNaN(value)) {
+    throw new Error(`unreadable counter count: ${count}`);
+  }
+  return value;
 }
 
 /**
@@ -92,7 +135,7 @@ export function parseCesrStream(stream: string): ParsedEvent[] {
     if (!match || match.index === undefined) break;
 
     const start = cursor + match.index;
-    const size = parseInt(match[3] as string, 16);
+    const size = declaredSize(match);
     if (!Number.isFinite(size) || size <= 0) break;
 
     // The version string counts BYTES. Slicing the string would count UTF-16
