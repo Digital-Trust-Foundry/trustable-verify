@@ -6,7 +6,7 @@ import { recomputeSaid } from "../said.js";
 import { verifyKel } from "../kel.js";
 import { parseCesrStream } from "../cesr.js";
 import { satisfiedRound } from "../approvals.js";
-import { boundPolicy } from "../acdc.js";
+import { boundPolicy, sadFromCesr } from "../acdc.js";
 
 /** A framed ACDC carrying one signature policy, for reading the policy back. */
 function policyCesr(threshold: number): string {
@@ -614,5 +614,103 @@ describe("a key event log framed the KERI 2.0 way", () => {
 
     expect(events.length).toBeGreaterThan(0);
     expect(events[0]?.sad["t"]).toBe("icp");
+  });
+});
+
+describe("a credential framed the KERI 2.0 way", () => {
+  /**
+   * The half of the framing fix that was missed the first time.
+   *
+   * `parseCesrStream` learned both spellings; `sadFromCesr` kept a second
+   * regex of its own that read 1.0 only, and every caller of it — the document
+   * hash, the bound policy, the approvals — took its `null` to mean "no
+   * credential" rather than "could not be read". The credential a wallet signs
+   * is 2.0 and the one the server issues is 1.0, so a package carried one of
+   * each: every check that touched the genesis credential passed while the
+   * approvals silently counted zero.
+   *
+   * Both fixtures are the same issuance minted twice, which is what makes this
+   * a test of the reader rather than of whichever version it was written
+   * against.
+   */
+  const minted = JSON.parse(
+    readFileSync(
+      fileURLToPath(
+        new URL("../../fixtures/acdc-2.0-approval.json", import.meta.url),
+      ),
+      "utf8",
+    ),
+  ) as {
+    genesis_said: string;
+    issuer_aid: string;
+    v2: { said: string; cesr: string };
+    v1: { said: string; cesr: string };
+  };
+
+  it("reads a credential in either framing", () => {
+    for (const form of [minted.v2, minted.v1]) {
+      const sad = sadFromCesr(form.cesr);
+
+      expect(sad?.["d"]).toBe(form.said);
+      expect(sad?.["i"]).toBe(minted.issuer_aid);
+    }
+  });
+
+  it("reaches the edge that says what an approval approves", () => {
+    // The field the package builder matches an approval on. Unreadable bytes
+    // and an absent edge are indistinguishable to it, and both mean the
+    // approval is dropped.
+    for (const form of [minted.v2, minted.v1]) {
+      const edges = sadFromCesr(form.cesr)?.["e"] as
+        | { genesis?: { n?: string } }
+        | undefined;
+
+      expect(edges?.genesis?.n).toBe(minted.genesis_said);
+    }
+  });
+
+  it("frames each to the byte count its own version string states", () => {
+    // The two spellings state the same thing and the sizes differ, because a
+    // 2.0 envelope is not byte-identical to a 1.0 one. Reading either count
+    // with the other's rule slices in the wrong place.
+    expect(minted.v2.cesr).toMatch(/^\{"v":"ACDCCAACAAJSON[A-Za-z0-9_-]{4}\."/);
+    expect(minted.v1.cesr).toMatch(/^\{"v":"ACDC10JSON[0-9a-f]{6}_"/);
+  });
+
+  /**
+   * Framing a 2.0 credential is not the same as being able to check one, and
+   * this records exactly where the second half stops.
+   *
+   * 1.0 derives its identifier by replacing `d` with a dummy of its own length
+   * and hashing the serialization — which is what `recomputeSaid` does, and
+   * why it agrees. 2.0 derives it by the Most Compact Algorithm: each section
+   * carrying its own `d` is first replaced by that section's SAID, the version
+   * string's byte count is restated for the shorter serialization, and only
+   * then is `d` dummied and the whole hashed. Reproducing it means rebuilding
+   * the compact form, and the bytes we ship do not contain it.
+   *
+   * They do not even contain the part that would make rebuilding mechanical:
+   * keripy computes the edge section's SAID, uses it, and then emits `e.d` as
+   * `""` rather than writing it back — so a verifier has to know to substitute
+   * a 44-character dummy into an empty field and derive the value itself.
+   *
+   * Asserted rather than skipped, because "cannot yet" and "wrong" look the
+   * same from the outside and only one of them is true. When the algorithm
+   * lands, this test fails and says so.
+   */
+  it("cannot yet recompute a 2.0 identifier, and can recompute a 1.0 one", () => {
+    expect(recomputeSaid(minted.v1.cesr)).toBe(minted.v1.said);
+    expect(recomputeSaid(minted.v2.cesr)).not.toBe(minted.v2.said);
+  });
+
+  it("refuses a key event log, which is framed the same way and is not one", () => {
+    const log = JSON.parse(
+      readFileSync(
+        fileURLToPath(new URL("../../fixtures/keri-2.0-kel.json", import.meta.url)),
+        "utf8",
+      ),
+    ) as { kel: string };
+
+    expect(sadFromCesr(log.kel)).toBeNull();
   });
 });

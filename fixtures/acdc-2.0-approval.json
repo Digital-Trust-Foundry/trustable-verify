@@ -1,0 +1,12 @@
+{
+  "genesis_said": "EEUTj_BhT1U3HJYvQlRi5OjHImrVMPKrRswchUpb8MSq",
+  "issuer_aid": "EEN4xFv7M1j72wgWfKyg3-yAjN98DWVwSaxF7qaD62Ch",
+  "v2": {
+    "said": "ENoYVv7NbuWc6Bz4Uu8nghsNSJJtPx3sZgqyLjiFC06r",
+    "cesr": "{\"v\":\"ACDCCAACAAJSONAAKi.\",\"d\":\"ENoYVv7NbuWc6Bz4Uu8nghsNSJJtPx3sZgqyLjiFC06r\",\"i\":\"EEN4xFv7M1j72wgWfKyg3-yAjN98DWVwSaxF7qaD62Ch\",\"rd\":\"EL_rbzQoDD6q78NgbZ-HroweNfEVBdIU-1YTd64cZCwa\",\"s\":\"EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao\",\"a\":{\"dt\":\"2026-08-21T00:00:00.000000+00:00\",\"content\":{\"document_hash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"signer_aid\":\"EEN4xFv7M1j72wgWfKyg3-yAjN98DWVwSaxF7qaD62Ch\",\"content_type\":\"enterprise_signed_document\",\"trustable_said\":\"EAAAtrustable000000000000000000000000000000\"},\"e\":{\"d\":\"\",\"genesis\":{\"n\":\"EEUTj_BhT1U3HJYvQlRi5OjHImrVMPKrRswchUpb8MSq\",\"s\":\"EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao\"}}}"
+  },
+  "v1": {
+    "said": "EF1pVS84s44DoVfIbtN8Wf8NsGSNo3l-SIGKOhM4qad9",
+    "cesr": "{\"v\":\"ACDC10JSON0002a0_\",\"d\":\"EF1pVS84s44DoVfIbtN8Wf8NsGSNo3l-SIGKOhM4qad9\",\"i\":\"EEN4xFv7M1j72wgWfKyg3-yAjN98DWVwSaxF7qaD62Ch\",\"ri\":\"EL_rbzQoDD6q78NgbZ-HroweNfEVBdIU-1YTd64cZCwa\",\"s\":\"EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao\",\"a\":{\"dt\":\"2026-08-21T00:00:00.000000+00:00\",\"content\":{\"document_hash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"signer_aid\":\"EEN4xFv7M1j72wgWfKyg3-yAjN98DWVwSaxF7qaD62Ch\",\"content_type\":\"enterprise_signed_document\",\"trustable_said\":\"EAAAtrustable000000000000000000000000000000\"},\"e\":{\"d\":\"\",\"genesis\":{\"n\":\"EEUTj_BhT1U3HJYvQlRi5OjHImrVMPKrRswchUpb8MSq\",\"s\":\"EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao\"}}}"
+  }
+}

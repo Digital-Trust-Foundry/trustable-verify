@@ -7,28 +7,37 @@
  * envelope the SAID is computed over, so reading them from the stream is what
  * makes them uneditable.
  */
+import { parseCesrStream } from "./cesr.js";
 
 /**
- * The credential's own serialisation, parsed. JSON framing only — Platform
- * issues ACDC10JSON, and matching the CBOR or MGPK variants would slice bytes
- * `JSON.parse` always rejects and dress the failure up as a successful read.
+ * The credential's own serialisation, parsed.
+ *
+ * Framed by `parseCesrStream`, which is the only thing in this package that
+ * knows how a version string is written. It used to be framed here too, by a
+ * second regex that read the 1.0 spelling only — so a credential issued at
+ * 2.0 parsed as `null`, and every caller read that as "no credential" rather
+ * than "could not be read". The approval an officer's device signs is 2.0,
+ * which made `readApprovals` return nothing on the exact credentials it
+ * exists to count, while a 1.0 genesis credential beside it read fine and
+ * every other check on the page passed.
+ *
+ * One implementation, so a version this package learns to frame is a version
+ * it can read everywhere. JSON only, still: matching the CBOR or MGPK
+ * variants would slice bytes `JSON.parse` always rejects and dress the
+ * failure up as a successful read.
  */
 export function sadFromCesr(cesr: string): Record<string, unknown> | null {
-  const framing = /ACDC\d{2}JSON([0-9a-f]{6})_/.exec(cesr.slice(0, 64));
-  if (!framing) return null;
-  // The version string states a length in BYTES. Slicing the string would
-  // measure UTF-16 units and cut a credential carrying any non-ASCII attribute
-  // in the wrong place.
-  const bytes = new TextEncoder().encode(cesr);
-  const size = parseInt(framing[1] as string, 16);
-  if (!Number.isFinite(size) || size <= 0 || size > bytes.length) return null;
-  try {
-    return JSON.parse(
-      new TextDecoder().decode(bytes.subarray(0, size)),
-    ) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
+  const [first] = parseCesrStream(cesr);
+  if (!first) return null;
+
+  // A credential, not whatever else arrives framed the same way. `sadFromCesr`
+  // is asked for the thing a SAID and a policy are read out of, and handing
+  // back the first event of a key event log because it happened to be framed
+  // identically would be a confidently wrong answer.
+  const version = first.sad["v"];
+  return typeof version === "string" && version.startsWith("ACDC")
+    ? first.sad
+    : null;
 }
 
 /** One named candidate in a bound signature policy. */
