@@ -1,4 +1,4 @@
-import { decodeIndexedSignature } from "./qb64.js";
+import { decodeIndexedSignature, indexedSignatureLength } from "./qb64.js";
 
 /**
  * Reads a CESR stream far enough to verify it: each event's exact bytes, and
@@ -101,10 +101,15 @@ function readControllerSignatures(
 
     if (code === "-A") {
       for (let i = 0; i < count; i += 1) {
-        const primitive = attachment.slice(cursor, cursor + 88);
-        if (primitive.length < 88) return found;
+        // 88 or 92 characters, decided by the code in front: a rotated
+        // identifier signs in the longer big-index form.
+        const length = indexedSignatureLength(
+          attachment.slice(cursor, cursor + 2),
+        );
+        const primitive = attachment.slice(cursor, cursor + length);
+        if (primitive.length < length) return found;
         found.push(decodeIndexedSignature(primitive));
-        cursor += 88;
+        cursor += length;
       }
       continue;
     }

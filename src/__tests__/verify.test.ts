@@ -7,6 +7,7 @@ import { verifyKel } from "../kel.js";
 import { parseCesrStream } from "../cesr.js";
 import { satisfiedRound } from "../approvals.js";
 import { boundPolicy, sadFromCesr } from "../acdc.js";
+import { base64Int, decodeIndexedSignature } from "../qb64.js";
 
 /** A framed ACDC carrying one signature policy, for reading the policy back. */
 function policyCesr(threshold: number): string {
@@ -762,5 +763,123 @@ describe("a credential framed the KERI 2.0 way", () => {
     ) as { kel: string };
 
     expect(sadFromCesr(log.kel)).toBeNull();
+  });
+});
+
+/**
+ * The same signatures in the other form signify writes them in.
+ *
+ * `A`/`B` is the short form: one code character, one index character, 86 of
+ * signature. `2A`/`2B` is the big-index form: two code characters, a
+ * two-character index, a two-character prior-index, the same 86 of
+ * signature. An identifier that has rotated signs in the big form — signify
+ * chooses it whenever the index and the prior index differ — so every paired
+ * wallet's documents arrive this way, and a verifier that reads only the
+ * short form fails all of them.
+ */
+function bigIndexForm(stream: string): string {
+  const B64 =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  const two = (n: number) => `${B64[Math.floor(n / 64)]}${B64[n % 64]}`;
+  let out = "";
+  let cursor = 0;
+  while (cursor < stream.length) {
+    const at = stream.indexOf("-A", cursor);
+    // `-A` followed by a two-character count and then 88-character signatures;
+    // anything else that happens to spell "-A" inside JSON is left alone.
+    if (at === -1 || at + 4 > stream.length) {
+      out += stream.slice(cursor);
+      break;
+    }
+    const count = base64Int(stream.slice(at + 2, at + 4));
+    const short = stream.slice(at + 4, at + 4 + count * 88);
+    const looksLikeSigs =
+      Number.isInteger(count) &&
+      count > 0 &&
+      short.length === count * 88 &&
+      /^[AB]/.test(short) &&
+      stream[at - 1] !== '"';
+    if (!looksLikeSigs) {
+      out += stream.slice(cursor, at + 2);
+      cursor = at + 2;
+      continue;
+    }
+    out += stream.slice(cursor, at + 4);
+    for (let i = 0; i < count; i += 1) {
+      const sig = short.slice(i * 88, (i + 1) * 88);
+      const index = B64.indexOf(sig[1] as string);
+      out += `2${sig[0]}${two(index)}${two(index)}${sig.slice(2)}`;
+    }
+    cursor = at + 4 + count * 88;
+  }
+  return out;
+}
+
+describe("big-index signatures", () => {
+  const pkg = fixture("issued");
+  const kel = pkg.kel as string;
+  const shortSig = kel.slice(
+    kel.indexOf("-AAB") + 4,
+    kel.indexOf("-AAB") + 4 + 88,
+  );
+
+  it("decodes the big form to the same index and the same bytes", () => {
+    const short = decodeIndexedSignature(shortSig);
+    // Same code letter, the one-character index said twice in two characters
+    // (index, then prior-index), then the same 86 characters of signature.
+    const big = decodeIndexedSignature(
+      `2${shortSig[0]}A${shortSig[1]}A${shortSig[1]}${shortSig.slice(2)}`,
+    );
+    expect(big.index).toBe(short.index);
+    expect(
+      Buffer.from(big.signature).equals(Buffer.from(short.signature)),
+    ).toBe(true);
+  });
+
+  it("reads a two-character index", () => {
+    // Index 65: "BB" in two base64url characters — beyond what one can say.
+    const big = `2A${"BB"}${"BB"}${shortSig.slice(2)}`;
+    expect(decodeIndexedSignature(big).index).toBe(65);
+  });
+
+  it("still refuses what is not an Ed25519 signature", () => {
+    expect(() =>
+      decodeIndexedSignature(`2C${"AAAA"}${shortSig.slice(2)}`),
+    ).toThrow(/not an Ed25519 indexed signature: 2CAA/);
+    expect(() =>
+      decodeIndexedSignature(`2A${"AAAA"}${shortSig.slice(2, 40)}`),
+    ).toThrow(/92-character/);
+  });
+
+  it("walks a KEL signed in the big form exactly as the short one", () => {
+    const big = bigIndexForm(kel);
+    expect(big).not.toBe(kel);
+    expect(big.length).toBeGreaterThan(kel.length);
+    const shortEvents = parseCesrStream(kel);
+    const bigEvents = parseCesrStream(big);
+    expect(bigEvents.length).toBe(shortEvents.length);
+    bigEvents.forEach((event, i) => {
+      const other = shortEvents[i]!;
+      expect(event.signatures.map((s) => s.index)).toEqual(
+        other.signatures.map((s) => s.index),
+      );
+      event.signatures.forEach((s, j) =>
+        expect(
+          Buffer.from(s.signature).equals(
+            Buffer.from(other.signatures[j]!.signature),
+          ),
+        ).toBe(true),
+      );
+    });
+    const result = verifyKel(big, pkg.issuer_aid);
+    expect("kel" in result).toBe(true);
+  });
+
+  it("verifies a package whose KEL is signed in the big form", () => {
+    const rewritten = clone(pkg);
+    rewritten.kel = bigIndexForm(kel);
+    const result = verifyPackage(rewritten);
+    expect(result.trustReport.steps.kelDiscovery.status).not.toBe("failed");
+    expect(result.authenticity.established).toBe(true);
   });
 });
