@@ -103,18 +103,61 @@ export function decodeVerkey(qb64: string): Uint8Array {
   return decodeQb64(qb64, 32);
 }
 
-/** Ed25519 indexed signature (`A`/`B` code plus a one-character index). */
+/**
+ * How long an Ed25519 indexed signature is, read off its code.
+ *
+ * Two forms carry the same 64-byte signature. `A`/`B` are 88 characters: a
+ * one-character code and a one-character index, good for indexes below 64.
+ * `2A`/`2B` are 92: a two-character code, a two-character index and a
+ * two-character prior-index. Signify writes the second form whenever the
+ * index and the prior index differ — which is to say for any identifier
+ * that has rotated, and every paired wallet rotates. A verifier that reads
+ * only the first form fails every signature such an identifier makes.
+ */
+export function indexedSignatureLength(qb64: string): 88 | 92 {
+  return qb64[0] === "2" ? 92 : 88;
+}
+
+/** Ed25519 indexed signature, in either the short or the big-index form. */
 export function decodeIndexedSignature(qb64: string): {
   index: number;
   signature: Uint8Array;
 } {
-  const code = qb64[0];
-  if (code !== "A" && code !== "B") {
+  if (qb64[0] === "A" || qb64[0] === "B") {
+    const index = B64_INDEX.get(qb64[1] as string);
+    if (index === undefined) {
+      throw new Error(`unreadable signature index: ${String(qb64[1])}`);
+    }
+    return { index, signature: decodeQb64(qb64, 64) };
+  }
+  const code = qb64.slice(0, 2);
+  if (code !== "2A" && code !== "2B") {
     throw new Error(`not an Ed25519 indexed signature: ${qb64.slice(0, 4)}`);
   }
-  const index = B64_INDEX.get(qb64[1] as string);
-  if (index === undefined) {
-    throw new Error(`unreadable signature index: ${String(qb64[1])}`);
+  if (qb64.length !== 92) {
+    throw new Error(
+      `expected a 92-character big-index signature, got ${qb64.length}`,
+    );
   }
-  return { index, signature: decodeQb64(qb64, 64) };
+  // The index is the first two soft characters; the two after it are the
+  // prior-next index, which says where the key sat before rotation and plays
+  // no part in checking the signature against the keys in force.
+  const index = base64Int(qb64.slice(2, 4));
+  if (Number.isNaN(index)) {
+    throw new Error(`unreadable signature index: ${qb64.slice(2, 4)}`);
+  }
+  // Six characters of code and soft part stand where the short form has two,
+  // so the extra quadlet is dropped and the rest decodes exactly as before.
+  return { index, signature: decodeQb64(`AA${qb64.slice(6)}`, 64) };
+}
+
+/** A base64url string read as a big-endian integer, NaN when unreadable. */
+export function base64Int(text: string): number {
+  let value = 0;
+  for (const char of text) {
+    const digit = B64_INDEX.get(char);
+    if (digit === undefined) return Number.NaN;
+    value = value * 64 + digit;
+  }
+  return value;
 }
